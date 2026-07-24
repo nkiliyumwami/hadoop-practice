@@ -1,0 +1,6 @@
+# Generated analysis output (never commit data or generated workbooks)
+*.xlsx
+!docs/*.xlsx
+__pycache__/
+*.pyc
+scratch_*
