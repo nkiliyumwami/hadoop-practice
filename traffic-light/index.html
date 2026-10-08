@@ -1253,7 +1253,7 @@ function caption(text) {
 /* ---------- camera ---------- */
 const CAM = {
   hero: { p: [0.4, 7.2, 12.0], t: [0, 0.4, -1.9] },
-  overview: { p: [0.6, 11.5, 11.8], t: [0, 0, -2.6] },
+  overview: { p: [-0.6, 11.5, 12.2], t: [-0.9, 0, -2.4] },
   led: { p: [9.8, 4.0, 7.8], t: [7.3, 1.4, 0.2] },
   board: { p: [0, 8.6, 7.4], t: [0, 0, 0.3] },
   red: { p: [-2.2, 6.6, 5.4], t: [-1.4, 0.3, -1.5] },
@@ -1271,7 +1271,7 @@ function flyTo(key, instant) {
   const to = { p: V(...c.p), t: V(...c.t) };
   const aspect = camera.aspect;
   if (aspect < 1.25) {
-    const k = 1 + (1.25 - aspect) * 0.9;
+    const k = 1 + (1.25 - aspect) * 0.4;
     to.p.sub(to.t).multiplyScalar(k).add(to.t);
   }
   if (instant || reduceMotion) {
@@ -2014,6 +2014,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+if (window.innerWidth < 600) { showLabels = false; $('#labelsToggle').checked = false; }
 updateCycle(true);
 goTo(0, { instant: true });
 housing.position.y = housingTarget;
