@@ -429,6 +429,36 @@ pre.code .tick {
 .btn[aria-pressed="true"] { background: var(--hl); border-color: var(--hl); }
 .toggle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; font-weight: 800; font-size: 14px; cursor: pointer; flex: 1 1 auto; }
 .toggle input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.why { display: grid; gap: 6px; }
+.why-item { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.why-item > button {
+  width: 100%; text-align: left; background: none; border: 0; padding: 9px 12px;
+  font-weight: 800; cursor: pointer; display: flex; gap: 10px; align-items: flex-start; line-height: 1.35;
+}
+.why-item > button::before {
+  content: '?'; flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-strong);
+  display: grid; place-items: center; font-family: var(--font-display); font-size: 15px;
+}
+.why-item.seen > button::before { content: '✓'; background: var(--accent); color: #fff; font-size: 13px; }
+.why-item .ans { padding: 0 12px 10px 44px; }
+.why-item .ans p { margin: 0; font-size: 14.5px; }
+.why-item.now { border-color: var(--hl); box-shadow: inset 0 0 0 1px var(--hl); background: #FFFBEA; }
+.show3d {
+  margin-top: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent-strong);
+  border-radius: 999px; padding: 3px 12px; font-weight: 800; font-size: 13px; cursor: pointer;
+}
+.show3d:hover { background: var(--accent-soft); }
+.analogy { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.analogy li { display: grid; grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr); gap: 10px; font-size: 14.5px; }
+.analogy b { color: var(--accent-strong); }
+.journey { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-size: 14.5px; }
+.meter { position: relative; height: 22px; border-radius: 8px; overflow: hidden; background: linear-gradient(90deg, #DDF2E5 0 40%, #FBE2E2 40% 100%); border: 1px solid var(--line); }
+.meter i { position: absolute; left: 0; top: 0; bottom: 0; width: 8%; background: var(--green); border-radius: 8px; transition: width .6s, background .3s; }
+.meter i.danger { background: var(--red); }
+.meter-scale { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 3px; }
+.meter-limit { position: absolute; left: 40%; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
+.big-result { margin: 8px 0; font-size: 15px; }
 .fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; font-weight: 700; }
 
 @media (max-width: 860px) {
@@ -1115,7 +1145,7 @@ for (let k = 0; k < DOTS; k++) {
   d.renderOrder = 10; d.visible = false;
   scene.add(d); dots.push(d);
 }
-let flowOn = false, flowOffset = 0;
+let flowOn = false, flowOffset = 0, loopBroken = false, noResistor = false;
 function pointAlong(path, s) {
   const { pts, cum } = path;
   let lo = 0, hi = cum.length - 1;
@@ -1128,7 +1158,7 @@ function updateFlow(dt) {
   dots.forEach((d) => { d.visible = show; });
   if (!show) return;
   const path = flowPaths[litIndex];
-  flowOffset = (flowOffset + dt * 1.7) % path.len;
+  flowOffset = (flowOffset + dt * (noResistor && litIndex === 0 ? 5 : 1.7)) % path.len;
   const gap = path.len / DOTS;
   dots.forEach((d, k) => d.position.copy(pointAlong(path, (flowOffset + k * gap) % path.len)));
 }
@@ -1192,7 +1222,7 @@ const pinLabels = ['D25', 'D26', 'D27', 'GND'].map((n, i) => addLabel(n, pinAt(n
   obj: esp32, cls: 'pin', lift: [14, 40, 66, 14][i],
   update: (L) => {
     if (n === 'GND') return;
-    const high = showPinStates && litIndex === i;
+    const high = showPinStates && seq.running && PHASES[seq.phase].ch === i;
     const txt = showPinStates ? `${n} ${high ? 'HIGH' : 'LOW'}` : n;
     if (L._t !== txt) { L.el.firstChild.textContent = txt; L._t = txt; }
     L.el.classList.toggle('high', high);
@@ -1298,6 +1328,7 @@ const CAM = {
   cathodes: { p: [0.2, 6.6, 9.0], t: [0, 0.2, 1.1] },
   gnd: { p: [8.6, 7.6, 6.2], t: [1.8, 0.3, -1.4] },
   loop: { p: [2.6, 10.2, 10.4], t: [0.4, 0, -1.9] },
+  redlook: { p: [-1.9, 4.2, 5.0], t: [-1.9, 0.3, 0.2] },
   setup: { p: [0.3, 6.6, 0.4], t: [0.3, 0, -4.4] },
   code: { p: [1.0, 8.2, 10.8], t: [0.2, 0.3, -2.2] },
 };
@@ -1343,7 +1374,7 @@ function updateSeq(dt) {
       seq.remaining += phaseDur(seq.phase);
     }
   }
-  setLights(PHASES[seq.phase].ch);
+  setLights(loopBroken ? -1 : PHASES[seq.phase].ch);
 }
 function stepPhase() {
   if (!seq.running) startSeq();
@@ -1510,33 +1541,37 @@ const STEPS = [
     text: 'Click each part on the table to highlight it and learn its job. Can you find all five?' },
   { stage: 1, title: 'Look closely at an LED', cam: 'led', bigLed: true, extra: 'B2', play: playB2,
     text: `An LED is a light that lets electricity flow in only one direction, so its two legs are different. The longer leg of a new, untrimmed LED is usually the ${T('anode', 'the + leg, where current goes in')} (+), and the flat edge on the rim marks the ${T('cathode', 'the − leg, where current comes out')} (−).` },
-  { stage: 2, title: 'How a breadboard connects', cam: 'board', build: [], extra: 'C1', play: playC1,
+  { stage: 1, title: 'How electricity flows', cam: 'loop', seq: true, flow: true, pinStates: true, extra: 'B3',
+    text: `Electricity only flows around a complete loop, called a ${T('circuit', 'a complete loop that electricity can flow around')}. It leaves an ESP32 pin, travels through the parts, and comes back into the ESP32's GND pin. The yellow dots show the trip.` },
+  { stage: 1, title: 'Why do we need a resistor?', cam: 'redlook', seq: true, hold: true, flow: true, pinStates: true, extra: 'B4',
+    text: `${T('Current', 'how much electricity flows through a wire each second')} is how much electricity flows each second. An LED can't limit its own current, so we add a resistor to keep the flow small and safe.` },
+  { stage: 2, title: 'How a breadboard connects', cam: 'board', build: [], extra: 'C1', play: playC1, why: () => WHY.board,
     text: 'Under the plastic, metal clips join some holes together. The 5 holes in each short row are connected, and the long ground rail is connected all the way along.' },
-  { stage: 2, title: 'Red: D25 → resistor → LED', cam: 'red', build: [], plan: 0, play: (t) => buildChain(0, t),
+  { stage: 2, title: 'Red: D25 → resistor → LED', cam: 'red', build: [], plan: 0, play: (t) => buildChain(0, t), why: () => WHY.chain[0],
     text: 'A wire joins pin D25 to row 7, and a 330 Ω resistor carries the signal across the middle gap to the red LED’s long leg (anode). The short leg (cathode) goes in row 8, a separate row.' },
-  { stage: 2, title: 'Yellow: D26 → resistor → LED', cam: 'yellow', build: chain(0), plan: 1, play: (t) => buildChain(1, t),
+  { stage: 2, title: 'Yellow: D26 → resistor → LED', cam: 'yellow', build: chain(0), plan: 1, play: (t) => buildChain(1, t), why: () => WHY.chain[1],
     text: 'Same pattern: pin D26 goes to row 15, through its own 330 Ω resistor, to the yellow LED’s anode. Every LED gets its own resistor.' },
-  { stage: 2, title: 'Green: D27 → resistor → LED', cam: 'green', build: chain(0, 1), plan: 2, play: (t) => buildChain(2, t),
+  { stage: 2, title: 'Green: D27 → resistor → LED', cam: 'green', build: chain(0, 1), plan: 2, play: (t) => buildChain(2, t), why: () => WHY.chain[2],
     text: 'Pin D27 goes to row 23, through a third 330 Ω resistor, to the green LED’s anode. Its cathode sits in row 24.' },
-  { stage: 2, title: 'Cathodes to the ground rail', cam: 'cathodes', build: chain(0, 1, 2), plan: 3, play: playC5,
+  { stage: 2, title: 'Cathodes to the ground rail', cam: 'cathodes', build: chain(0, 1, 2), plan: 3, play: playC5, why: () => WHY.cathodes,
     text: `Short black wires join each LED’s cathode row to the ground rail (−). ${T('Ground', 'the shared return path back to the controller')} is the path electricity uses to get back to the controller.` },
-  { stage: 2, title: 'Ground rail to GND', cam: 'gnd', build: chain(0, 1, 2).concat(['k0', 'k1', 'k2']), plan: 4, play: playC6,
+  { stage: 2, title: 'Ground rail to GND', cam: 'gnd', build: chain(0, 1, 2).concat(['k0', 'k1', 'k2']), plan: 4, play: playC6, why: () => WHY.gnd,
     text: 'One more black wire joins the ground rail to the ESP32’s GND pin. Now each light has a complete loop.' },
   { stage: 2, title: 'The loop is complete', cam: 'loop', seq: true, flow: true, plan: 5, extra: 'C7',
     text: `Electricity flows out of a pin, through the resistor and the LED, and back to GND. A complete loop like this is called a ${T('circuit', 'a complete loop that electricity can flow around')}.` },
-  { stage: 3, title: 'Get the pins ready', cam: 'setup', code: true, pinStates: true, play: playD1,
+  { stage: 3, title: 'Get the pins ready', cam: 'setup', code: true, pinStates: true, play: playD1, why: () => WHY.setup,
     text: `This MicroPython program runs on the ESP32. The first lines run once: Pin(25, Pin.OUT) makes pin 25 an ${T('output', 'a pin that sends electricity out')}, so it can send electricity out to a light, and pins 26 and 27 are set up the same way.` },
-  { stage: 3, title: 'while True: the code runs the lights', cam: 'code', seq: true, code: true, stepper: true, pinStates: true,
+  { stage: 3, title: 'while True: the code runs the lights', cam: 'code', seq: true, code: true, stepper: true, pinStates: true, why: () => WHY.loop,
     text: 'while True: repeats its lines forever. value(1) means HIGH and turns this output on; value(0) means LOW and turns it off. time.sleep() tells the program how many seconds to wait.' },
   { stage: 4, title: 'Experiment: a longer green light', cam: 'hero', seq: true, code: true, stepper: true, extra: 'E1', pinStates: true,
     text: 'Drag the slider to change how long the green light stays on, from 2 to 10 seconds. The light, the countdown and the code all change together.' },
   { stage: 4, title: 'Quick quiz', cam: 'hero', seq: true, extra: 'E2',
-    text: 'One last question to check what you learned.' },
+    text: 'Three quick questions to check what you learned. Wrong answers are fine: you get a hint and can try again.' },
 ];
 
 let stepIndex = 0;
 const partsFound = new Set();
-let quiz = { choice: null, solved: false };
+let quiz = [0, 1, 2].map(() => ({ choice: null, solved: false }));
 let revealOpen = false;
 
 const PART_INFO = {
@@ -1548,6 +1583,180 @@ const PART_INFO = {
   cop: { name: 'Officer Ohm', purpose: 'Your guide for this lesson.', more: 'Officer Ohm is named after the ohm (Ω), the unit we use to measure resistors.' },
 };
 const CORE_PARTS = ['controller', 'led', 'resistor', 'breadboard', 'wire'];
+
+
+/* ---------- "Why?" questions: each answer can light up the board ---------- */
+async function flash(t, parts, labels = []) {
+  const made = parts.map(([pts, color]) => strip(pts, color));
+  const cs = labels.map(([txt, pos, cls, lift]) => callout(txt, pos, cls, lift || 30));
+  await wait(4, t); if (t !== token) return;
+  made.forEach((g) => fadeOut(g, 0.6, t));
+  cs.forEach((c) => removeLabel(c));
+  callouts = callouts.filter((L) => !cs.includes(L));
+}
+async function flashRings(t, list) {
+  const made = list.map(([pos, color]) => ring(pos, color));
+  const cs = list.filter((x) => x[2]).map(([pos, , txt, lift]) => callout(txt, V(pos.x, pos.y + 0.05, pos.z), 'gold', lift || 34));
+  await wait(4, t); if (t !== token) return;
+  made.forEach((m) => { m.visible = false; });
+  cs.forEach((c) => removeLabel(c));
+  callouts = callouts.filter((L) => !cs.includes(L));
+}
+const GOLD = 0xf2b705, BLUE = 0x2f6fde, DARK = 0x2e3136;
+function chainWhy(i) {
+  const ch = CH[i], c = ch.col, low = ch.name.toLowerCase();
+  const rowPair = (t) => flash(t, [[column(c, 'far'), GOLD], [column(c, 'near'), BLUE]],
+    [[`Top half of row ${c}`, holeAt(c, 'a', 0.02), 'gold'], [`Bottom half of row ${c}`, holeAt(c, 'j', 0.02), 'blue']]);
+  const legs = (t) => flash(t, [[column(c, 'near'), GOLD], [column(c + 1, 'near'), BLUE]],
+    [[`Row ${c}: long leg + resistor`, holeAt(c, 'f', 0.02), 'gold', 60], [`Row ${c + 1}: short leg only`, holeAt(c + 1, 'j', 0.02), 'blue']]);
+  if (i === 0) return [
+    { cue: 'pin', q: 'Why pin D25?',
+      a: 'D25 is a GPIO pin. GPIO means general-purpose input/output: our program can switch it on (3.3 volts) or off (0 volts). We use 25, 26 and 27 because they sit side by side and can all send electricity out. Some pins, like D34 and D35, can only listen.',
+      show: (t) => flashRings(t, [[pinAt('D25'), GOLD, 'D25', 30], [pinAt('D26'), GOLD, 'D26', 56], [pinAt('D27'), GOLD, 'D27', 82]]) },
+    { cue: 'row', q: 'Why row 7? Why hole a?',
+      a: 'The wire only needs to land in the same row as the resistor’s top leg. Any hole from a to e in row 7 would work, because those five are joined underneath. We start at row 7 so each light gets its own space and the wires don’t cross.',
+      show: (t) => flash(t, [[column(c, 'far'), GOLD]], [['Any of these 5 holes would work', holeAt(c, 'a', 0.02), 'gold']]) },
+    { cue: 'res', q: 'Why does the resistor jump across the middle gap?',
+      a: 'The gap splits row 7 into a top half and a bottom half that are not connected. With one leg on each side, the only way for electricity to get from the top half to the bottom half is through the resistor. That is exactly what we want.',
+      show: rowPair },
+    { cue: 'res', q: 'Why does the resistor come before the LED?',
+      a: 'In a single loop, the same current flows through every part, so the resistor protects the LED whether it sits before or after it. Putting it first keeps the build tidy: pin, resistor, light.' },
+    { cue: 'led', q: 'Why does the long leg go in row 7?',
+      a: 'The long leg is the anode (+), where electricity goes in. An LED only works one way round, so the anode must face the pin side. In row 7’s bottom half it shares the metal clip with the resistor’s lower leg, so they are connected.',
+      show: (t) => flash(t, [[column(c, 'near'), GOLD]], [['Resistor leg + long leg share this row', holeAt(c, 'j', 0.02), 'gold']]) },
+    { cue: 'cathode', q: 'Why is the short leg in a different row (row 8)?',
+      a: 'If both legs were in row 7, the metal clip would join them. Electricity would take that shortcut around the LED instead of going through it, and the LED would stay dark. That shortcut is called a short circuit. Row 8 keeps the legs apart.',
+      show: legs },
+    { cue: 'cathode', q: 'Where does the short leg go next?',
+      a: 'Nowhere yet! Row 8 is waiting for a black ground wire, which we add two steps from now. Until then the loop isn’t complete, so the LED can’t light.' },
+  ];
+  if (i === 1) return [
+    { cue: 'pin', q: 'Why a different pin (D26) for yellow?',
+      a: 'Each light needs its own pin so the program can switch it on and off by itself. If two LEDs shared one pin, they would always turn on and off together.',
+      show: (t) => flashRings(t, [[pinAt('D26'), GOLD, 'D26', 40]]) },
+    { cue: 'row', q: 'Why row 15, so far from row 7?',
+      a: 'Any empty row would work. Leaving space between the lights stops the parts touching by accident and keeps the wires easy to follow.',
+      show: (t) => flash(t, [[column(7, 'far'), GOLD], [column(15, 'far'), GOLD]], [['Row 7', holeAt(7, 'a', 0.02), 'gold'], ['Row 15', holeAt(15, 'a', 0.02), 'gold']]) },
+    { cue: 'res', q: 'Why does yellow get its own resistor?',
+      a: 'Each resistor protects one LED. With its own resistor, the yellow LED always gets the right amount of current, no matter what the other lights are doing.' },
+    { cue: 'led', q: 'Is this the same pattern as red?',
+      a: 'Yes: pin → top half of the row → resistor across the gap → bottom half of the row → long leg. The short leg sits alone in the next row (16). When a pattern works, we repeat it.',
+      show: legs },
+  ];
+  return [
+    { cue: 'pin', q: 'Why D27?',
+      a: 'It’s right beside D26. The three wires leave the ESP32 in the same order as the lights on the board (red, yellow, green), so they fan out without crossing.',
+      show: (t) => flashRings(t, [[pinAt('D25'), GOLD, 'red', 30], [pinAt('D26'), GOLD, 'yellow', 56], [pinAt('D27'), GOLD, 'green', 82]]) },
+    { cue: 'row', q: 'Why row 23?',
+      a: 'Same spacing again: row 23 is 8 rows after 15, just as 15 was 8 rows after 7. Even spacing makes mistakes easy to spot.' },
+    { cue: 'res', q: 'Could the three LEDs share one resistor?',
+      a: 'It’s a bad habit. Shared LEDs can split the current unevenly, and their brightness changes depending on how many are on. One resistor per LED is the safe, simple rule.' },
+    { cue: 'cathode', q: 'Why row 24 for the short leg?',
+      a: 'Same reason as red and yellow: if the short leg shared row 23 with the long leg, electricity would skip the LED (a short circuit).',
+      show: legs },
+  ];
+}
+const WHY = {
+  board: [
+    { cue: 'start', q: 'Why use a breadboard at all?',
+      a: 'You build by pushing parts into holes. There’s no soldering (melting metal to join parts), so mistakes are easy to fix and every part can be used again.' },
+    { cue: 'row', q: 'Why are 5 holes joined together?',
+      a: 'So several parts can meet at one spot. Put two legs in the same row and they’re connected, a bit like plugging two things into the same power strip.',
+      show: (t) => flash(t, [[column(7, 'far'), GOLD]], [['Joined underneath', holeAt(7, 'a', 0.02), 'gold']]) },
+    { cue: 'gap', q: 'Why is there a gap in the middle?',
+      a: 'The gap splits each row into a top half (a–e) and a bottom half (f–j) that are not connected. A part can bridge the gap, so electricity has to go through the part to get across.',
+      show: (t) => flash(t, [[column(7, 'far'), GOLD], [column(7, 'near'), BLUE]], [['Top half', holeAt(7, 'a', 0.02), 'gold'], ['Bottom half: not joined to the top', holeAt(7, 'j', 0.02), 'blue']]) },
+    { cue: 'rail', q: 'Why is there a long rail along the edge?',
+      a: 'Lots of parts need to reach the same place, like ground. The rail is one long strip joined all the way along, so any part can plug into it nearby.',
+      show: (t) => flash(t, [[railPoints(), DARK]], [['Ground rail: all joined', railAt(20, 0.02), 'ground']]) },
+    { cue: 'rail', q: 'Why are there + and − rails?',
+      a: 'The red + rail is usually for power and the blue − rail for ground. In this project the ESP32 pins provide the power, so we only use the blue − rail, for ground.' },
+  ],
+  chain: [chainWhy(0), chainWhy(1), chainWhy(2)],
+  cathodes: [
+    { cue: 'start', q: 'Why do the short legs (cathodes) go to ground?',
+      a: 'Electricity needs a way back to the ESP32 to finish its loop. Ground (GND) is that way back. No way back means no flow, and no light.' },
+    { cue: 'start', q: 'Why hole j?',
+      a: 'Every hole from f to j in the short leg’s row is connected to that leg. Hole j is the closest to the rail, so the wire can be short.',
+      show: (t) => flash(t, [[column(8, 'near'), BLUE]], [['All connected to the short leg', holeAt(8, 'j', 0.02), 'blue']]) },
+    { cue: 'rail', q: 'Why use the rail instead of 3 wires to the ESP32?',
+      a: 'The rail lets all three LEDs share one connection. Three short wires go to the rail, then one wire goes to the ESP32. That’s tidier and leaves the ESP32’s other pins free.',
+      show: (t) => flash(t, [[railPoints(), DARK]], [['Shared by all three LEDs', railAt(18, 0.02), 'ground']]) },
+    { cue: 'rail', q: 'Why are the ground wires black?',
+      a: 'Wire colour doesn’t change how electricity flows. People use black for ground by habit, so anyone can check the circuit at a glance.' },
+  ],
+  gnd: [
+    { cue: 'start', q: 'Why connect to GND?',
+      a: 'GND is the ESP32’s 0-volt point. Electricity flows from a pin at 3.3 volts down to 0 volts, a bit like water flowing downhill. This wire is the last piece of the path.' },
+    { cue: 'start', q: 'Why this GND pin?',
+      a: 'The ESP32 has more than one GND pin, and they are all joined inside the board. This one is on the same side as D25, D26 and D27, so the wiring stays tidy.',
+      show: (t) => flashRings(t, [[pinAt('GND'), GOLD, 'GND', 30]]) },
+    { cue: 'end', q: 'Why the end of the rail?',
+      a: 'Any hole on the rail would work, because it’s all joined. The far end keeps this long wire away from the LEDs.' },
+    { cue: 'end', q: 'What if we forget this wire?',
+      a: 'The loop would have a gap, so no light could turn on, even with the program running. You can try it in stage B, step “How electricity flows”.' },
+  ],
+  setup: [
+    { cue: 'pins', q: 'Why Pin(25)?',
+      a: '25 is the pin the red wire is plugged into. The number in the code must match the wiring: if the red wire were on D26, we would write Pin(26).',
+      show: (t) => flashRings(t, [[pinAt('D25'), GOLD, 'red wire → 25', 30]]) },
+    { cue: 'pins', q: 'Why Pin.OUT?',
+      a: 'OUT means the pin will send electricity out to something, like our LED. A pin set to IN listens instead, for example to a button.' },
+    { cue: 'pins', q: 'Why give the pins names like red?',
+      a: 'red.value(1) is much easier to read than remembering which number is which light.' },
+  ],
+  loop: [
+    { q: 'Why value(1) and value(0)?',
+      a: '1 means on: the pin gives out 3.3 volts and current flows through the LED. 0 means off: 0 volts, so no current and no light.' },
+    { q: 'Why switch the other two lights off every time?',
+      a: 'It makes sure only one light is ever on, whatever was on before. A real traffic light must never show red and green together.' },
+    { q: 'Why while True:?',
+      a: 'True never stops being true, so the loop repeats forever, just like a real traffic light that runs all day.' },
+    { q: 'Why time.sleep()?',
+      a: 'Computers are very fast. Without a pause, the lights would change thousands of times a second, far too fast to see.' },
+  ],
+};
+
+let whyEls = [], whyList = [];
+function whyCard(list) {
+  whyList = list;
+  const card = el(`<div class="card"><h4>Why is it built this way?</h4><div class="why"></div>
+    <p class="note" style="margin-top:8px">Tap a question to read the answer. “Show me” lights it up on the board.</p></div>`);
+  const box = card.querySelector('.why');
+  whyEls = list.map((w, k) => {
+    const item = el(`<div class="why-item"><button type="button" aria-expanded="false">${w.q}</button>
+      <div class="ans" hidden><p>${w.a}</p>${w.show ? '<button type="button" class="show3d">Show me on the board</button>' : ''}</div></div>`);
+    item.firstElementChild.addEventListener('click', () => openWhy(k, { toggle: true, scroll: false }));
+    if (w.show) item.querySelector('.show3d').addEventListener('click', () => w.show(token));
+    box.appendChild(item);
+    return item;
+  });
+  return card;
+}
+function openWhy(k, opt = {}) {
+  const item = whyEls[k];
+  if (!item) return;
+  const ans = item.querySelector('.ans');
+  const open = opt.toggle ? ans.hidden : true;
+  whyEls.forEach((e) => e.classList.remove('now'));
+  ans.hidden = !open;
+  item.firstElementChild.setAttribute('aria-expanded', String(open));
+  if (open) item.classList.add('now', 'seen');
+  if (opt.scroll !== false) {
+    const pb = $('#panelBody');
+    if (pb.scrollHeight > pb.clientHeight + 4) {
+      const r = item.getBoundingClientRect(), pr = pb.getBoundingClientRect();
+      if (r.top < pr.top || r.bottom > pr.bottom) pb.scrollTop += r.top - pr.top - 12;
+    }
+  }
+}
+// open every "why" for this cue, the first one gets focus
+function cue(t, name) {
+  if (t !== token) return;
+  const ks = whyList.map((w, k) => (w.cue === name ? k : -1)).filter((k) => k >= 0);
+  ks.slice().reverse().forEach((k) => openWhy(k, { scroll: false }));
+  if (ks.length) openWhy(ks[0]);
+}
 
 /* ---------- step animations ---------- */
 async function playB2(t) {
@@ -1562,17 +1771,21 @@ async function playB2(t) {
 }
 async function playC1(t) {
   caption('Watch the glowing holes: glowing together means connected');
+  cue(t, 'start');
   await wait(1.0, t); if (t !== token) return;
+  cue(t, 'row');
   let s = strip(column(7, 'far'), 0xf2b705);
   let c = callout('These 5 holes are connected (row 7)', holeAt(7, 'a', 0.02), 'gold', 30);
   await wait(3.0, t); if (t !== token) return;
   const s2 = strip(column(7, 'near'), 0x2f6fde);
   const c2 = callout('A separate group of 5 (also row 7)', holeAt(7, 'j', 0.02), 'blue', 30);
+  cue(t, 'gap');
   callout('The middle gap keeps the two halves apart', V(colX(12), 0.02, 0), '', 54);
   await wait(3.2, t); if (t !== token) return;
   fadeOut(s, 0.6, t); fadeOut(s2, 0.6, t); removeLabel(c); removeLabel(c2);
   callouts = callouts.filter((L) => L !== c && L !== c2);
   const r = strip(railPoints(), 0x2e3136);
+  cue(t, 'rail');
   callout('Ground rail (−): connected all the way along', railAt(20, 0.02), 'ground', 30);
   await wait(3.5, t); if (t !== token) return;
   fadeOut(r, 0.8, t);
@@ -1583,15 +1796,20 @@ async function buildChain(i, t) {
   const cs = (txt) => { if (t === token) caption(txt); };
   // 1) the wire
   cs(`Find both ends: pin ${ch.pin} and row ${ch.col}`);
+  cue(t, 'pin');
   const r1 = ring(pinAt(ch.pin, HEADER_TOP)), r2 = ring(holeAt(ch.col, 'b'));
   const c1 = callout(`Pin ${ch.pin}`, pinAt(ch.pin, HEADER_TOP + 0.05), 'gold', 34);
   const c2 = callout(`Row ${ch.col}`, holeAt(ch.col, 'b', 0.02), 'gold', 30);
   await wait(1.6, t); if (t !== token) return;
+  await wait(1.2, t); if (t !== token) return;
   cs(`Drawing a jumper wire from ${ch.pin} to row ${ch.col}`);
+  cue(t, 'row');
   await drawWire('w' + i, t); if (t !== token) return;
   [r1, r2].forEach((m) => { m.visible = false; });
   // 2) the resistor
+  await wait(1.2, t); if (t !== token) return;
   cs('Find both ends for the 330 Ω resistor: across the middle gap');
+  cue(t, 'res');
   const r3 = ring(holeAt(ch.col, 'd')), r4 = ring(holeAt(ch.col, 'g'));
   await wait(1.3, t); if (t !== token) return;
   cs('Pushing in the 330 Ω resistor');
@@ -1603,7 +1821,9 @@ async function buildChain(i, t) {
   await wait(2.2, t); if (t !== token) return;
   fadeOut(sFar, 0.6, t);
   // 3) the LED
+  await wait(1.2, t); if (t !== token) return;
   cs(`Find both ends for the ${ch.name.toLowerCase()} LED: rows ${ch.col} and ${ch.col + 1}`);
+  cue(t, 'led');
   const r5 = ring(holeAt(ch.col, 'i')), r6 = ring(holeAt(ch.col + 1, 'i'), 0x2f6fde);
   await wait(1.3, t); if (t !== token) return;
   cs(`Pushing in the ${ch.name.toLowerCase()} LED`);
@@ -1614,10 +1834,12 @@ async function buildChain(i, t) {
   callout(`Anode (long leg) · row ${ch.col}`, holeAt(ch.col, 'h', 0.02), 'gold', 74);
   callout(`Cathode (short leg) · row ${ch.col + 1}`, holeAt(ch.col + 1, 'j', 0.02), 'blue', 30);
   cs(`Resistor meets the anode in row ${ch.col}. The cathode is alone in row ${ch.col + 1}.`);
+  cue(t, 'cathode');
   await wait(3.5, t);
-  if (t === token) caption(`Done! Click Next when you are ready.`);
+  if (t === token) caption('Done! Read the “Why?” questions, then click Next.');
 }
 async function playC5(t) {
+  cue(t, 'start');
   for (let i = 0; i < 3; i++) {
     const ch = CH[i];
     if (t !== token) return;
@@ -1630,12 +1852,14 @@ async function playC5(t) {
   }
   const r = strip(railPoints(), 0x2e3136);
   callout('All three cathodes now share the ground rail', railAt(18, 0.02), 'ground', 30);
-  caption('Done! Click Next when you are ready.');
+  cue(t, 'rail');
+  caption('Done! Read the “Why?” questions, then click Next.');
   await wait(3.5, t); if (t !== token) return;
   fadeOut(r, 0.8, t);
 }
 async function playC6(t) {
   caption('Find both ends: the GND pin and the ground rail');
+  cue(t, 'start');
   const a = ring(pinAt('GND', HEADER_TOP)), b = ring(railAt(30));
   callout('GND pin', pinAt('GND', HEADER_TOP + 0.05), 'ground', 34);
   callout('Ground rail', railAt(30, 0.02), 'ground', 30);
@@ -1645,6 +1869,7 @@ async function playC6(t) {
   a.visible = b.visible = false;
   const r = strip(railPoints(), 0x2e3136);
   caption('Done! Every LED now has a path back to GND.');
+  cue(t, 'end');
   await wait(3.0, t); if (t !== token) return;
   fadeOut(r, 0.8, t);
 }
@@ -1653,6 +1878,7 @@ async function playD1(t) {
   setCodeNote('<b>from machine import Pin</b> brings in the tools for controlling pins. <b>import time</b> lets the program wait.');
   const rings = ['D25', 'D26', 'D27'].map((n) => ring(pinAt(n, HEADER_TOP)));
   await wait(3.2, t); if (t !== token) return;
+  cue(t, 'pins');
   for (let k = 0; k < 3; k++) {
     const name = CH[k].key;
     codeOverride = { line: 4 + k };
@@ -1683,6 +1909,41 @@ function planList(cur) {
   }).join('');
   return el(`<div class="card"><h4>Wiring plan</h4><ul class="list">${items}</ul></div>`);
 }
+let bareWire = null;
+function setLoopBroken(on, btn, text) {
+  loopBroken = on;
+  gndWire.group.visible = !on;
+  clearTemps();
+  if (on) {
+    ring(pinAt('GND'), 0xd93b3b); ring(railAt(30), 0xd93b3b);
+    callout('Unplugged!', pinAt('GND', HEADER_TOP + 0.05), '', 34);
+  }
+  if (btn) { btn.textContent = on ? 'Plug the ground wire back in' : 'Unplug the ground wire'; btn.setAttribute('aria-pressed', String(on)); }
+  if (text) text.innerHTML = on
+    ? '<b>No loop, no light!</b> The program still switches the pin on (look: it still says HIGH), but the electricity has no way back to GND, so it can’t flow.'
+    : 'The loop is complete, so the lights work.';
+  lastStatus = '';
+}
+function setNoResistor(on) {
+  noResistor = on;
+  resistors[0].visible = !on;
+  if (bareWire) { scene.remove(bareWire); bareWire = null; }
+  clearTemps();
+  if (on) {
+    const x = colX(CH[0].col), m = mat(0x9aa0a6, { metalness: 0.3, roughness: 0.35 });
+    bareWire = new THREE.Group();
+    const pts = [V(x, -0.05, ROWZ.d), V(x, 0.3, ROWZ.d), V(x, 0.3, ROWZ.g), V(x, -0.05, ROWZ.g)];
+    for (let k = 0; k < 3; k++) bareWire.add(rod(pts[k], pts[k + 1], 0.02, m));
+    scene.add(bareWire);
+    callout('Pretend: plain wire, no resistor', V(x, 0.35, 0), '', 40);
+  }
+  const fill = $('#meterFill'), txt = $('#meterText'), btn = $('#swapBtn');
+  if (fill) { fill.style.width = on ? '100%' : '8%'; fill.classList.toggle('danger', on); }
+  if (txt) txt.innerHTML = on
+    ? '<b style="color:var(--red)">Way too much, over 40 mA!</b> The LED could burn out in moments, and the ESP32 pin could be damaged too.'
+    : '<b style="color:var(--green)">About 4 mA: gentle and safe.</b> The 330 Ω resistor keeps the flow small, and the LED still shines nicely.';
+  if (btn) { btn.textContent = on ? 'Put the 330 Ω resistor back' : 'Pretend: swap the resistor for a plain wire'; btn.setAttribute('aria-pressed', String(on)); }
+}
 function renderExtra(s) {
   extra.innerHTML = '';
   if (s.extra === 'A') extra.appendChild(phaseList());
@@ -1711,9 +1972,44 @@ function renderExtra(s) {
     </div></div>`));
     extra.appendChild(planList(-1));
   }
+  if (s.extra === 'B3') {
+    const card = el(`<div class="card"><h4>Think of water in pipes</h4><ul class="analogy">
+      <li><b>ESP32 pin</b><span>A pump that pushes the water out. 3.3 volts is how hard it pushes.</span></li>
+      <li><b>Jumper wires</b><span>Pipes that carry the water.</span></li>
+      <li><b>Resistor</b><span>A narrow bit of pipe that slows the flow down.</span></li>
+      <li><b>LED</b><span>A water wheel that glows when water flows through it, one way only.</span></li>
+      <li><b>GND</b><span>The drain that leads back to the pump.</span></li>
+    </ul></div>`);
+    const test = el(`<div class="card"><h4>Try it: break the loop</h4>
+      <button class="btn" id="loopBtn" type="button" aria-pressed="false">Unplug the ground wire</button>
+      <p class="big-result" id="loopText">The loop is complete, so the lights work.</p></div>`);
+    test.querySelector('#loopBtn').addEventListener('click', (e) => setLoopBroken(!loopBroken, e.currentTarget, test.querySelector('#loopText')));
+    extra.appendChild(test); extra.appendChild(card);
+  }
+  if (s.extra === 'B4') {
+    const card = el(`<div class="card"><h4>Current through the red LED</h4>
+      <div class="meter"><i id="meterFill"></i><span class="meter-limit" title="About the most a small LED can take"></span></div>
+      <div class="meter-scale"><span>0 mA</span><span>LED limit ≈ 20 mA</span><span>50 mA</span></div>
+      <p class="big-result" id="meterText"></p>
+      <button class="btn" id="swapBtn" type="button" aria-pressed="false"></button>
+      <p class="note" style="margin-top:10px"><b>Math for the curious:</b> the red LED uses about 2 volts, so the resistor gets the other 1.3 volts. Current = 1.3 V ÷ 330 Ω ≈ 0.004 A, which is 4 mA (milliamps).</p></div>`);
+    card.querySelector('#swapBtn').addEventListener('click', () => setNoResistor(!noResistor));
+    extra.appendChild(card);
+    extra.appendChild(el(`<p class="note safety"><b>Pretend demo only.</b> Never connect an LED to a pin without a resistor in a real circuit.</p>`));
+    setTimeout(() => setNoResistor(noResistor), 0);
+  }
+  if (s.why) extra.appendChild(whyCard(s.why()));
   if (s.plan != null) extra.appendChild(planList(s.plan));
   if (s.extra === 'C7') {
-    extra.appendChild(el(`<div class="card"><h4>Follow the dots</h4><p class="note">The yellow dots show the path for whichever light is on: pin → wire → resistor → LED → ground rail → GND.</p></div>`));
+    extra.appendChild(el(`<div class="card"><h4>Follow one trip around the loop</h4><ol class="journey">
+      <li>Pin D25 is switched on and pushes out 3.3 volts.</li>
+      <li>The red jumper wire carries it to row 7, top half.</li>
+      <li>It squeezes through the 330 Ω resistor across the gap.</li>
+      <li>Row 7, bottom half, leads to the LED’s long leg.</li>
+      <li>It flows through the LED, which lights up, and out of the short leg into row 8.</li>
+      <li>A black wire takes it to the ground rail.</li>
+      <li>The rail and the last black wire bring it home to GND.</li>
+    </ol><p class="note" style="margin-top:8px">Yellow and green take the same kind of trip from D26 and D27.</p></div>`));
     extra.appendChild(el(`<p class="note safety"><b>Remember:</b> this animation shows how the circuit works. It is not a safety test, so ask an adult to check a real circuit before you plug it in.</p>`));
   }
   if (s.extra === 'E1') {
@@ -1744,7 +2040,7 @@ function renderExtra(s) {
     extra.appendChild(codeCard);
   }
   if (s.extra === 'E1') updateSumLine();
-  if (s.extra === 'E2') extra.appendChild(renderQuiz());
+  if (s.extra === 'E2') QUIZ.forEach((_, k) => extra.appendChild(renderQuiz(k)));
 }
 function updateSumLine() {
   const v = $('#greenVal'), sl = $('#sumLine');
@@ -1753,37 +2049,51 @@ function updateSumLine() {
   const gs = $('#greenSecs');
   if (gs) gs.textContent = greenDur + ' s';
 }
-const QUIZ = {
-  q: 'Why does each LED need a resistor?',
-  opts: [
-    'So the LED can change colour',
-    'To limit the current and help protect the LED',
-    'To store the program for the lights',
-    'To make the jumper wires longer',
-  ],
-  right: 1,
-};
-function renderQuiz() {
-  const card = el(`<div class="card"><p class="question">${QUIZ.q}</p><div class="quiz-opts" role="group" aria-label="Answers"></div><div id="quizFb" aria-live="polite"></div></div>`);
+const QUIZ = [
+  { q: 'Why does each LED need a resistor?',
+    opts: ['So the LED can change colour', 'To limit the current and help protect the LED', 'To store the program for the lights', 'To make the jumper wires longer'],
+    right: 1,
+    good: 'A resistor limits how much current flows. Without one, too much current could flow through the LED and damage it or the ESP32 pin. Each LED has its own resistor, so each light is protected on its own.',
+    hint: 'Think back to the meter in “Why do we need a resistor?”.' },
+  { q: 'Why does the LED’s short leg go in a different row from its long leg?',
+    opts: ['So the LED stands up straight', 'If both legs share a row, electricity skips the LED (a short circuit)', 'Each row can only hold one leg', 'The short leg needs more power'],
+    right: 1,
+    good: 'The 5 holes in a row are joined underneath. Two legs in one row would be joined too, so electricity would take that shortcut instead of going through the LED.',
+    hint: 'Remember which holes are joined together under the plastic.' },
+  { q: 'What happens if the ground wire is unplugged?',
+    opts: ['The lights get brighter', 'Nothing changes', 'There is no complete loop, so no light can turn on', 'Only the green light works'],
+    right: 2,
+    good: 'Electricity needs a complete loop: out of the pin, through the parts, and back to GND. Without the ground wire, the loop has a gap.',
+    hint: 'Try the “Unplug the ground wire” button in stage B.' },
+];
+function renderQuiz(n) {
+  const Q = QUIZ[n], st = quiz[n];
+  const card = el(`<div class="card"><h4>Question ${n + 1} of ${QUIZ.length}</h4><p class="question">${Q.q}</p><div class="quiz-opts" role="group" aria-label="Answers"></div><div aria-live="polite"></div></div>`);
   const box = card.querySelector('.quiz-opts');
-  QUIZ.opts.forEach((txt, k) => {
+  Q.opts.forEach((txt, k) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.innerHTML = `<b>${'ABCD'[k]}</b><span>${txt}</span>`;
-    if (quiz.choice === k) b.classList.add(k === QUIZ.right ? 'right' : 'wrong');
-    if (quiz.solved && k === QUIZ.right) b.classList.add('right');
-    b.addEventListener('click', () => { quiz.choice = k; if (k === QUIZ.right) quiz.solved = true; const n = renderQuiz(); card.replaceWith(n); });
+    if (st.choice === k) b.classList.add(k === Q.right ? 'right' : 'wrong');
+    if (st.solved && k === Q.right) b.classList.add('right');
+    b.addEventListener('click', () => {
+      st.choice = k; if (k === Q.right) st.solved = true;
+      card.replaceWith(renderQuiz(n));
+      const done = document.getElementById('quizDone');
+      if (quiz.every((x) => x.solved) && !done) extra.appendChild(finishCard());
+    });
     box.appendChild(b);
   });
-  const fb = card.querySelector('#quizFb');
-  if (quiz.choice != null) {
-    if (quiz.choice === QUIZ.right) {
-      fb.innerHTML = `<div class="feedback good"><b>Yes, great thinking!</b><p style="margin:4px 0 0">A resistor limits how much current flows. Without one, too much current could flow through the LED and damage it or the controller pin. Each LED has its own resistor, so each light is protected on its own.</p><p style="margin:6px 0 0"><b style="font-size:16px">You finished the lesson!</b> You built a circuit and controlled it with code.</p></div>`;
-    } else {
-      fb.innerHTML = `<div class="feedback try"><b>Good try!</b><p style="margin:4px 0 0">That is not the job of a resistor. Hint: look back at what the resistor does to the flow of electricity. Pick another answer.</p></div>`;
-    }
+  const fb = card.lastElementChild;
+  if (st.choice != null) {
+    fb.innerHTML = st.choice === Q.right
+      ? `<div class="feedback good"><b>Yes, great thinking!</b><p style="margin:4px 0 0">${Q.good}</p></div>`
+      : `<div class="feedback try"><b>Good try!</b><p style="margin:4px 0 0">That’s not quite it. ${Q.hint} Pick another answer.</p></div>`;
   }
   return card;
+}
+function finishCard() {
+  return el(`<div class="feedback good" id="quizDone"><b>You finished the lesson!</b><p style="margin:4px 0 0">You know what every wire does, why each part sits where it does, and how the code controls the lights. Great work, engineer!</p></div>`);
 }
 
 /* ---------- header progress ---------- */
@@ -1894,9 +2204,13 @@ function goTo(i, opt = {}) {
   flowOn = !!s.flow;
   showPinStates = !!s.pinStates;
   codeOverride = null;
+  loopBroken = false; gndWire.group.visible = built.has('gnd');
+  noResistor = false;
+  if (bareWire) { scene.remove(bareWire); bareWire = null; }
+  whyEls = []; whyList = [];
   if (s.seq) {
-    if (!seq.running || opt.replay || !prev.seq) startSeq();
-    seq.manual = false;
+    if (!seq.running || opt.replay || !prev.seq || s.hold) startSeq();
+    seq.manual = !!s.hold;
   } else {
     seq.running = false; seq.manual = false;
     setLights(-1);
@@ -1938,7 +2252,7 @@ function resetLesson() {
   greenDur = DEFAULT_GREEN;
   const gm = codeCard.querySelector('#greenMs'); if (gm) gm.textContent = String(DEFAULT_GREEN);
   partsFound.clear();
-  quiz = { choice: null, solved: false };
+  quiz = [0, 1, 2].map(() => ({ choice: null, solved: false }));
   revealOpen = false;
   setPaused(false);
   showLabels = true; $('#labelsToggle').checked = true;
@@ -1973,7 +2287,7 @@ function updateStatus() {
   const running = seq.running;
   const ch = running ? CH[PHASES[seq.phase].ch] : null;
   const secs = running ? Math.max(1, Math.ceil(seq.remaining - 1e-6)) : 0;
-  const key = `${running}|${seq.phase}|${secs}|${paused}|${seq.manual}`;
+  const key = `${running}|${seq.phase}|${secs}|${paused}|${seq.manual}|${loopBroken}`;
   if (key !== lastStatus) {
     lastStatus = key;
     lampEls.forEach((l) => l.classList.toggle('on', !!ch && l.dataset.k === ch.key));
@@ -1983,7 +2297,8 @@ function updateStatus() {
     stCount.innerHTML = ch ? `${secs}<small>s</small>` : '';
     stCount.hidden = !ch;
     stBadge.hidden = !(paused || seq.manual);
-    stBadge.textContent = paused ? 'Paused' : 'Step-through';
+    stBadge.textContent = paused ? 'Paused' : STEPS[stepIndex].hold ? 'Held on' : 'Step-through';
+    if (loopBroken && ch) stWord.textContent = 'Pin is on, but the loop is broken';
     cycleEl.hidden = !running;
     cycleSegs.forEach((d, k) => d.classList.toggle('on', running && k === seq.phase));
     document.querySelectorAll('#phaseList li').forEach((li) => li.classList.toggle('on', running && +li.dataset.phase === seq.phase));
@@ -2032,6 +2347,11 @@ function frame(now) {
   const armR = cop.userData.armR;
   if (copWave > 0) { copWave -= rdt; armR.rotation.z = 2.5 + Math.sin(tt * 11) * 0.35; }
   else armR.rotation.z += (0.15 - armR.rotation.z) * Math.min(1, rdt * 5);
+  // pretend demo: no resistor makes the red LED glare and flicker
+  const L0 = leds[0].userData.led;
+  const boost = noResistor && litIndex === 0;
+  L0.glow.scale.setScalar(boost ? 3.0 + 0.5 * Math.sin(tt * 30) : 1.7);
+  if (litIndex === 0) L0.light.intensity = boost ? 6 : 2.4;
   for (const o of temps) if (o.userData.pulse) o.scale.setScalar(1 + 0.22 * Math.sin(tt * 6));
   if (selHelper) selHelper.update();
   controls.update();

@@ -12,10 +12,10 @@ Open `index.html` in a modern browser. It needs an internet connection to load t
 | Stage | Steps | What happens |
 | --- | --- | --- |
 | A · See it | 1 | The finished light runs red 5 s → green 5 s → yellow 2 s, one LED at a time, with a countdown. |
-| B · Meet the parts | 2 | Click the controller, LED, resistor, breadboard and jumper wire to learn each job. An enlarged LED shows the anode, the cathode and the flat edge. |
-| C · Build it | 7 | Breadboard connections, then the wiring plan one connection per step, then the complete loop with current-flow dots. |
+| B · Meet the parts | 4 | Click the controller, LED, resistor, breadboard and jumper wire to learn each job. An enlarged LED shows the anode, the cathode and the flat edge. "How electricity flows" explains the loop with a water-pipe analogy and lets learners unplug the ground wire. "Why do we need a resistor?" shows a current meter (4 mA vs. far too much) with a pretend no-resistor demo. |
+| C · Build it | 7 | Breadboard connections, then the wiring plan one connection per step, then the complete loop with current-flow dots. Every build step has a "Why is it built this way?" card (why this pin, why this row and hole, why the resistor crosses the gap, why the legs are in separate rows, why ground…). Answers open as the animation reaches them, and "Show me on the board" lights up the relevant holes. |
 | D · Code it | 2 | MicroPython (`main.py`): pin setup with `Pin(…, Pin.OUT)`, then the `while True:` loop with the active lines highlighted in sync with the lit LED, plus a **Step through** control. |
-| E · Experiment | 2 | A 2–10 s green-time slider updates the animation, countdown and code together, followed by a multiple-choice quiz. |
+| E · Experiment | 2 | A 2–10 s green-time slider updates the animation, countdown and code together, followed by a three-question quiz with hints. |
 
 ## Wiring plan (as built in the lesson)
 
