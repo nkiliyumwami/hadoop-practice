@@ -1,0 +1,2027 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My First Traffic Light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: a lab bench. The 3D workbench fills the left, the lesson card sits on the right; they stack on phones. */
+:root {
+  --bg: #E3EBF0;
+  --surface: #FFFFFF;
+  --surface-2: #F1F5F8;
+  --ink: #15202A;
+  --muted: #526170;
+  --line: #D2DCE3;
+  --accent: #0A7480;
+  --accent-strong: #075A63;
+  --accent-soft: #DAEEF0;
+  --red: #C93131;
+  --amber: #A86D00;
+  --amber-lamp: #FFB400;
+  --green: #16834A;
+  --hl: #F2B705;
+  --ground: #2E3136;
+  --code-bg: #13202A;
+  --code-ink: #E3ECF1;
+  --code-dim: #8BA0AE;
+  --code-hl: #24404F;
+  --font-display: 'Baloo 2', 'Trebuchet MS', system-ui, sans-serif;
+  --font-body: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  --font-code: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--hl); outline-offset: 2px; }
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  padding: 12px 16px 16px;
+  gap: 12px;
+}
+
+/* ---------- header ---------- */
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.05;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.brand p { margin: 0; color: var(--muted); font-size: 13px; }
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 4px 12px 4px 4px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.stage-pill b {
+  display: grid;
+  place-items: center;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--muted);
+}
+.stage-pill.done { color: var(--ink); }
+.stage-pill.done b { background: var(--accent-soft); color: var(--accent-strong); }
+.stage-pill.current { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
+.stage-pill.current b { background: var(--accent); color: #fff; }
+.progress { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+.progress .bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.progress .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+.progress span { font-weight: 700; font-size: 13px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ---------- main ---------- */
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 410px);
+  gap: 14px;
+  min-height: 0;
+}
+.viewport {
+  position: relative;
+  min-height: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #F3F7FA;
+  border: 1px solid var(--line);
+}
+#scene, #scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#scene canvas { touch-action: none; cursor: grab; }
+#scene canvas:active { cursor: grabbing; }
+.labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+.lbl { position: absolute; left: 0; top: 0; width: 0; height: 0; --lift: 10px; will-change: transform; color: var(--ink); }
+.lbl > span {
+  position: absolute;
+  left: 0; bottom: var(--lift);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(255,255,255,.94);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-weight: 800;
+  font-size: 12.5px;
+  box-shadow: 0 2px 8px rgba(21,32,42,.12);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.lbl::after {
+  content: '';
+  position: absolute;
+  left: -1px; bottom: 0;
+  width: 2px; height: var(--lift);
+  background: rgba(21,32,42,.45);
+}
+.lbl .dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,.25); }
+.lbl.lamp.on > span { color: #fff; border-color: transparent; }
+.lbl.lamp.on.red > span { background: var(--red); }
+.lbl.lamp.on.yellow > span { background: var(--amber-lamp); color: var(--ink); }
+.lbl.lamp.on.green > span { background: var(--green); }
+.lbl.pin > span { font-family: var(--font-code); font-size: 11.5px; padding: 1px 6px; }
+.lbl.pin.high > span { background: var(--hl); border-color: transparent; }
+.lbl.callout > span { background: var(--ink); color: #fff; border-color: transparent; font-size: 13px; }
+.lbl.callout::after { background: var(--ink); }
+.lbl.callout.gold > span { background: var(--hl); color: var(--ink); }
+.lbl.callout.blue > span { background: #2F6FDE; }
+.lbl.callout.ground > span { background: var(--ground); }
+
+.status {
+  position: absolute;
+  top: 12px; left: 12px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 14px 8px 8px;
+  box-shadow: 0 4px 14px rgba(21,32,42,.1);
+}
+.lamps {
+  display: grid; gap: 4px;
+  background: #2B3038;
+  padding: 5px;
+  border-radius: 10px;
+}
+.lamps i { width: 14px; height: 14px; border-radius: 50%; background: #4A515B; }
+.lamps i.on[data-k="red"] { background: #FF4141; box-shadow: 0 0 10px #FF4141; }
+.lamps i.on[data-k="yellow"] { background: var(--amber-lamp); box-shadow: 0 0 10px var(--amber-lamp); }
+.lamps i.on[data-k="green"] { background: #22D36B; box-shadow: 0 0 10px #22D36B; }
+.st-text { display: grid; line-height: 1.2; }
+.st-text b { font-family: var(--font-display); font-size: 20px; letter-spacing: .04em; }
+.st-text small { color: var(--muted); font-weight: 700; font-size: 12.5px; }
+.st-count {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  min-width: 2.2ch;
+  text-align: right;
+}
+.st-count small { font-size: 14px; color: var(--muted); margin-left: 2px; }
+.st-badge {
+  font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--hl); color: var(--ink); border-radius: 6px; padding: 1px 6px;
+}
+
+.reset-view {
+  position: absolute;
+  top: 12px; right: 12px;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(10,116,128,.35);
+}
+.reset-view:hover { background: var(--accent-strong); }
+.reset-view svg { width: 18px; height: 18px; }
+
+.cycle {
+  position: absolute;
+  left: 12px; right: 12px; bottom: 40px;
+  max-width: 520px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px 8px 8px;
+  box-shadow: 0 4px 14px rgba(21,32,42,.08);
+}
+.cycle-head { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--muted); padding: 0 2px 4px; font-variant-numeric: tabular-nums; }
+.cycle-track { position: relative; display: flex; gap: 3px; height: 26px; }
+.cycle-track > div {
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 800; color: #fff;
+  overflow: hidden; white-space: nowrap;
+  transition: flex-grow .4s;
+  opacity: .55;
+}
+.cycle-track > div.on { opacity: 1; }
+.seg-red { background: var(--red); }
+.seg-green { background: var(--green); }
+.seg-yellow { background: var(--amber-lamp); color: var(--ink) !important; }
+.cycle-marker {
+  position: absolute; top: -4px; bottom: -4px; width: 3px;
+  background: var(--ink); border-radius: 2px;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.live {
+  position: absolute;
+  left: 50%; top: 70px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  background: var(--ink); color: #fff;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 700; font-size: 14px;
+  text-align: center;
+  box-shadow: 0 6px 16px rgba(21,32,42,.25);
+}
+.hint {
+  position: absolute; left: 12px; bottom: 10px; margin: 0;
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  pointer-events: none;
+}
+
+.info {
+  position: absolute;
+  right: 12px; bottom: 40px;
+  width: min(330px, calc(100% - 24px));
+  background: var(--surface);
+  border: 2px solid var(--hl);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 26px rgba(21,32,42,.18);
+}
+.info h3 { font-family: var(--font-display); font-size: 19px; margin: 0 28px 2px 0; line-height: 1.2; }
+.info p { margin: 4px 0 0; }
+.info .purpose { font-weight: 800; }
+.info .more { color: var(--muted); font-size: 14px; }
+.info .close {
+  position: absolute; top: 8px; right: 8px;
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface-2);
+  cursor: pointer; font-weight: 800;
+}
+
+/* ---------- lesson panel ---------- */
+.panel {
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.panel-body { flex: 1; overflow: auto; padding: 16px; display: grid; gap: 14px; align-content: start; min-height: 0; }
+.guide { display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 10px; align-items: start; }
+.guide svg { width: 58px; height: 70px; }
+.bubble {
+  position: relative;
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 10px 14px 12px;
+}
+.bubble::before {
+  content: ''; position: absolute; left: -8px; top: 22px;
+  border: 8px solid transparent; border-left: 0; border-right-color: var(--surface-2);
+}
+.eyebrow { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.bubble h2 { font-family: var(--font-display); font-size: 23px; line-height: 1.15; margin: 2px 0 6px; text-wrap: balance; }
+.bubble p.text { margin: 0; font-size: 16px; }
+.term { font-weight: 800; color: var(--accent-strong); }
+
+.card { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.card h4 { margin: 0 0 8px; font-size: 13px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.list li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; }
+.list li.on { background: var(--accent-soft); }
+.chip-lamp { width: 16px; height: 16px; border-radius: 50%; flex: none; }
+.chip-lamp.red { background: var(--red); }
+.chip-lamp.yellow { background: var(--amber-lamp); }
+.chip-lamp.green { background: var(--green); }
+.list .secs { margin-left: auto; font-weight: 800; font-variant-numeric: tabular-nums; }
+.check {
+  width: 22px; height: 22px; border-radius: 50%; flex: none;
+  border: 2px solid var(--line); display: grid; place-items: center; font-size: 13px; font-weight: 900; color: transparent;
+}
+.done .check { background: var(--green); border-color: var(--green); color: #fff; }
+.list li.now { background: #FFF6D6; outline: 2px solid var(--hl); }
+.list li.part-item { cursor: pointer; border: 0; background: none; width: 100%; text-align: left; }
+.list li.part-item:hover { background: var(--surface-2); }
+.mono { font-family: var(--font-code); font-size: 13px; }
+.note { font-size: 14px; color: var(--muted); margin: 0; }
+.note.safety { background: #FFF6D6; border-radius: 10px; padding: 8px 10px; color: var(--ink); }
+.legend { display: grid; gap: 6px; font-size: 14px; }
+.legend div { display: flex; gap: 8px; align-items: center; }
+.sw { width: 26px; height: 10px; border-radius: 3px; flex: none; }
+
+/* code */
+.code-card { border-radius: 14px; overflow: hidden; background: var(--code-bg); color: var(--code-ink); }
+.code-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 10px 8px 14px; background: #0D171F; }
+.code-head span { font-family: var(--font-code); font-size: 12.5px; color: var(--code-dim); }
+.code-btns { display: flex; gap: 6px; }
+.code-btns button {
+  border: 1px solid #36505F; background: #1C2E3A; color: var(--code-ink);
+  border-radius: 8px; padding: 4px 10px; font-weight: 800; font-size: 13px; cursor: pointer;
+}
+.code-btns button.on { background: var(--hl); color: var(--ink); border-color: var(--hl); }
+pre.code {
+  margin: 0;
+  padding: 8px 0;
+  font-family: var(--font-code);
+  font-size: 12.5px;
+  line-height: 1.6;
+  max-height: 44vh;
+  overflow: auto;
+  position: relative;
+}
+pre.code .ln { display: block; padding: 0 12px 0 0; white-space: pre; border-left: 4px solid transparent; }
+pre.code .ln::before { content: attr(data-n); display: inline-block; width: 3.2ch; margin-right: 1.2ch; text-align: right; color: #4E6676; }
+pre.code .ln.hl { background: var(--code-hl); border-left-color: var(--hl); }
+pre.code .ln.hl.key { background: #2E5468; }
+pre.code .c { color: #8FA8B5; font-style: italic; }
+pre.code .kw { color: #7FD3E0; }
+pre.code .fn { color: #FFD479; }
+pre.code .k2 { color: #FF9BB0; font-weight: 600; }
+pre.code .num { color: #B6E68A; }
+pre.code .num.flash { background: var(--hl); color: var(--ink); border-radius: 3px; }
+pre.code .tick {
+  margin-left: 10px; font-family: var(--font-body); font-weight: 800; font-size: 11.5px;
+  background: var(--hl); color: var(--ink); border-radius: 6px; padding: 0 6px;
+}
+.code-note { margin: 0; padding: 8px 14px 10px; font-size: 13.5px; color: var(--code-ink); border-top: 1px solid #22323D; }
+.code-note b { color: #FFD479; }
+
+/* experiment */
+.slider-row { display: flex; align-items: center; gap: 12px; }
+.slider-row input { flex: 1; accent-color: var(--green); min-width: 0; height: 28px; }
+.slider-val { font-family: var(--font-display); font-weight: 800; font-size: 26px; color: var(--green); min-width: 3.4ch; text-align: right; font-variant-numeric: tabular-nums; }
+.ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); font-weight: 700; padding: 0 2px; }
+.sum { margin: 8px 0 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.question { font-family: var(--font-display); font-weight: 700; font-size: 19px; line-height: 1.25; margin: 0 0 8px; }
+.reveal { margin-top: 8px; background: var(--accent-soft); border-radius: 10px; padding: 8px 10px; }
+
+.quiz-opts { display: grid; gap: 8px; }
+.quiz-opts button {
+  text-align: left; border: 2px solid var(--line); background: var(--surface);
+  border-radius: 12px; padding: 10px 12px; cursor: pointer; font-weight: 700;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.quiz-opts button:hover { border-color: var(--accent); }
+.quiz-opts button b { font-family: var(--font-display); color: var(--accent); }
+.quiz-opts button.right { border-color: var(--green); background: #E3F5EA; }
+.quiz-opts button.wrong { border-color: var(--red); background: #FBE7E7; }
+.feedback { border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+.feedback.good { background: #E3F5EA; }
+.feedback.try { background: #FFF6D6; }
+.feedback b { font-family: var(--font-display); font-size: 18px; }
+
+/* footer controls */
+.panel-foot { border-top: 1px solid var(--line); padding: 12px 16px; display: grid; gap: 10px; background: var(--surface); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--surface);
+  border-radius: 12px; padding: 9px 12px; font-weight: 800; font-size: 14px; cursor: pointer;
+  flex: 1 1 auto;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: var(--accent-strong); }
+.btn.warn { color: var(--red); }
+.btn.armed { background: var(--red); color: #fff; border-color: var(--red); }
+.btn[aria-pressed="true"] { background: var(--hl); border-color: var(--hl); }
+.toggle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; font-weight: 800; font-size: 14px; cursor: pointer; flex: 1 1 auto; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; font-weight: 700; }
+
+@media (max-width: 860px) {
+  .app { height: auto; min-height: 100%; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  .viewport { height: 58vh; min-height: 360px; }
+  .panel-body { overflow: visible; }
+  .stages { margin-left: 0; }
+  .stage-pill span { display: none; }
+  .stage-pill { padding-right: 4px; }
+  .progress { flex: 1 1 100%; }
+  .status { padding: 6px 10px 6px 6px; gap: 8px; }
+  .st-text b { font-size: 16px; }
+  .st-count { font-size: 24px; }
+  .reset-view { padding: 8px 12px; font-size: 14px; }
+  .hint { display: none; }
+  .cycle { bottom: 10px; }
+  .info { bottom: 74px; }
+  pre.code { max-height: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="34" height="54" viewBox="0 0 34 54" aria-hidden="true">
+        <rect x="3" y="2" width="28" height="50" rx="9" fill="#2B3038"/>
+        <circle cx="17" cy="13" r="6" fill="#FF4141"/>
+        <circle cx="17" cy="27" r="6" fill="#FFB400"/>
+        <circle cx="17" cy="41" r="6" fill="#22D36B"/>
+      </svg>
+      <div>
+        <h1>My First Traffic Light</h1>
+        <p>Build it, wire it and code it, one step at a time</p>
+      </div>
+    </div>
+    <nav class="stages" id="stages" aria-label="Lesson stages"></nav>
+    <div class="progress" aria-live="polite">
+      <div class="bar" role="progressbar" aria-label="Lesson progress" id="progressBar" aria-valuemin="0" aria-valuemax="100"><i id="progressFill"></i></div>
+      <span id="progressText">Step 1 of 14</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="viewport" id="viewport" aria-label="3D workbench">
+      <div id="scene"></div>
+      <div class="labels" id="labels"></div>
+      <div class="status" id="status" aria-live="polite">
+        <div class="lamps" aria-hidden="true"><i data-k="red"></i><i data-k="yellow"></i><i data-k="green"></i></div>
+        <div class="st-text"><b id="stName">RED</b><small id="stWord">Stop</small></div>
+        <div class="st-count" id="stCount">5<small>s</small></div>
+        <span class="st-badge" id="stBadge" hidden>Paused</span>
+      </div>
+      <button class="reset-view" id="resetView" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        Reset view
+      </button>
+      <div class="live" id="live" hidden></div>
+      <div class="cycle" id="cycle" hidden>
+        <div class="cycle-head"><span>One full cycle</span><span id="cycleTotal">12 s</span></div>
+        <div class="cycle-track" id="cycleTrack">
+          <div class="seg-red" data-p="0">Red 5 s</div>
+          <div class="seg-green" data-p="1">Green 5 s</div>
+          <div class="seg-yellow" data-p="2">Yellow 2 s</div>
+          <i class="cycle-marker" id="cycleMarker"></i>
+        </div>
+      </div>
+      <div class="info" id="info" hidden role="dialog" aria-labelledby="infoTitle">
+        <button class="close" id="infoClose" type="button" aria-label="Close">✕</button>
+        <h3 id="infoTitle"></h3>
+        <p class="purpose" id="infoPurpose"></p>
+        <p class="more" id="infoMore"></p>
+      </div>
+      <p class="hint">Drag to rotate · Scroll or pinch to zoom · Right-drag to slide · Click a part to learn about it</p>
+    </section>
+
+    <aside class="panel" aria-label="Lesson">
+      <div class="panel-body" id="panelBody">
+        <div class="guide">
+          <svg viewBox="0 0 58 70" aria-hidden="true">
+            <rect x="12" y="44" width="34" height="26" rx="10" fill="#2C4E9E"/>
+            <rect x="26" y="50" width="6" height="7" rx="1.5" fill="#F2B705"/>
+            <circle cx="29" cy="30" r="16" fill="#F2C9A0"/>
+            <circle cx="23" cy="31" r="2.2" fill="#15202A"/>
+            <circle cx="35" cy="31" r="2.2" fill="#15202A"/>
+            <path d="M23 37 q6 5 12 0" stroke="#15202A" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <circle cx="19" cy="36" r="2.6" fill="#F4A6A0" opacity=".7"/>
+            <circle cx="39" cy="36" r="2.6" fill="#F4A6A0" opacity=".7"/>
+            <path d="M11 22 q18 -18 36 0 v3 h-36z" fill="#1F3A7A"/>
+            <rect x="9" y="22" width="40" height="5" rx="2.5" fill="#15202A"/>
+            <circle cx="29" cy="14" r="3.4" fill="#F2B705"/>
+          </svg>
+          <div class="bubble">
+            <p class="eyebrow" id="stageName">Stage A · See it</p>
+            <h2 id="stepTitle">See what we are building</h2>
+            <p class="text" id="stepText"></p>
+          </div>
+        </div>
+        <div id="extra" style="display:grid;gap:14px"></div>
+      </div>
+      <div class="panel-foot">
+        <div class="row">
+          <button class="btn" id="prev" type="button">← Previous</button>
+          <button class="btn" id="replay" type="button">↻ Replay this step</button>
+          <button class="btn primary" id="next" type="button">Next →</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="pause" type="button" aria-pressed="false">❚❚ Pause</button>
+          <label class="toggle" for="labelsToggle"><input type="checkbox" id="labelsToggle" checked> Show labels</label>
+          <button class="btn warn" id="resetLesson" type="button">Reset lesson</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+'use strict';
+const $ = (s) => document.querySelector(s);
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+if (!window.THREE || !THREE.OrbitControls) {
+  $('#scene').innerHTML = '<div class="fail">The 3D library could not load. Check your internet connection and reload the page.</div>';
+  return;
+}
+
+/* =========================================================
+   Board geometry. 1 unit ≈ 1 cm; breadboard hole pitch 0.25.
+   ========================================================= */
+const P = 0.25;
+const colX = (c) => (c - 15.5) * P;
+const ROWZ = { a: -1.375, b: -1.125, c: -0.875, d: -0.625, e: -0.375, f: 0.375, g: 0.625, h: 0.875, i: 1.125, j: 1.375 };
+const FAR_ROWS = ['a', 'b', 'c', 'd', 'e'], NEAR_ROWS = ['f', 'g', 'h', 'i', 'j'];
+const NEG_RAIL_Z = 2.2, POS_RAIL_Z = 1.95;
+const RAIL_COLS = [];
+for (let c = 1; c <= 30; c++) if ((c - 1) % 6 !== 0) RAIL_COLS.push(c);
+const HEADER_Z = -3.85, HEADER_TOP = 0.6, SLEEVE = 0.27;
+const PIN_X = { D8: -0.8, D9: -0.55, D10: -0.3, GND: 0.7 };
+
+const CH = [
+  { key: 'red', name: 'Red', word: 'Stop', pin: 'D8', num: 8, col: 7, hex: 0xff3030, wire: 0xe0413b },
+  { key: 'yellow', name: 'Yellow', word: 'Get ready to stop', pin: 'D9', num: 9, col: 15, hex: 0xffb400, wire: 0xf2c12e },
+  { key: 'green', name: 'Green', word: 'Go', pin: 'D10', num: 10, col: 23, hex: 0x1fd067, wire: 0x2fae5f },
+];
+
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const holeAt = (c, r, y = 0) => V(colX(c), y, ROWZ[r]);
+const railAt = (c, y = 0) => V(colX(c), y, NEG_RAIL_Z);
+const pinAt = (n, y = HEADER_TOP) => V(PIN_X[n], y, HEADER_Z);
+
+/* =========================================================
+   Renderer, scene, camera
+   ========================================================= */
+const host = $('#scene');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+} catch (e) {
+  host.innerHTML = '<div class="fail">This device could not start 3D graphics (WebGL). Try another browser.</div>';
+  return;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+host.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf3f7fa);
+scene.fog = new THREE.Fog(0xf3f7fa, 34, 70);
+
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
+camera.position.set(0.5, 6.2, 10.5);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.09;
+controls.minDistance = 2.5;
+controls.maxDistance = 30;
+controls.maxPolarAngle = Math.PI * 0.47;
+controls.target.set(0, 0.6, -1.2);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xcdd8e0, 0.72));
+scene.add(new THREE.AmbientLight(0xffffff, 0.16));
+const sun = new THREE.DirectionalLight(0xffffff, 0.62);
+sun.position.set(6, 15, 9);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 40;
+sun.shadow.bias = -0.0006;
+sun.shadow.radius = 4;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xdfefff, 0.22);
+fill.position.set(-8, 6, -4);
+scene.add(fill);
+
+const mat = (color, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.6, metalness: 0 }, o));
+function mesh(geo, m, x = 0, y = 0, z = 0, shadow = true) {
+  const o = new THREE.Mesh(geo, m);
+  o.position.set(x, y, z);
+  o.castShadow = shadow; o.receiveShadow = true;
+  return o;
+}
+function rod(a, b, r, m) {
+  const d = b.clone().sub(a);
+  const o = mesh(new THREE.CylinderGeometry(r, r, d.length(), 8), m);
+  o.position.copy(a).add(b).multiplyScalar(0.5);
+  o.quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize());
+  return o;
+}
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+const metal = mat(0xc9ced4, { metalness: 0.3, roughness: 0.35 });
+
+/* ---------- table ---------- */
+const table = mesh(new THREE.BoxGeometry(30, 0.6, 20), mat(0xe6d3b5, { roughness: 0.85 }), 0, -0.7, -2, false);
+scene.add(table);
+const matPad = mesh(new THREE.BoxGeometry(17, 0.02, 13.4), mat(0xcfe2e6, { roughness: 0.95 }), 0.6, -0.39, -2.6, false);
+scene.add(matPad);
+
+const pickables = [];
+function tagPart(obj, part) {
+  obj.userData.part = part;
+  pickables.push(obj);
+}
+
+/* ---------- breadboard ---------- */
+function breadboardTexture(W, D) {
+  const S = 180;
+  const c = document.createElement('canvas');
+  c.width = Math.round(W * S); c.height = Math.round(D * S);
+  const g = c.getContext('2d');
+  const U = (x) => (x + W / 2) * S, Z = (z) => (z + D / 2) * S;
+  g.fillStyle = '#f8f8f4'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#dcddd5'; g.fillRect(0, Z(-0.13), c.width, 0.26 * S);
+  const line = (z, col) => { g.fillStyle = col; g.fillRect(U(colX(1) - 0.2), Z(z) - 0.014 * S, (colX(30) - colX(1) + 0.4) * S, 0.028 * S); };
+  line(-2.42, '#2f6fde'); line(-1.76, '#d93b3b'); line(1.76, '#d93b3b'); line(2.42, '#2f6fde');
+  const hole = (x, z) => { const s = 0.1 * S; g.fillStyle = '#41464c'; roundRect(g, U(x) - s / 2, Z(z) - s / 2, s, s, s * 0.22); g.fill(); };
+  for (let col = 1; col <= 30; col++) for (const r in ROWZ) hole(colX(col), ROWZ[r]);
+  for (const col of RAIL_COLS) { hole(colX(col), POS_RAIL_Z); hole(colX(col), NEG_RAIL_Z); hole(colX(col), -1.95); hole(colX(col), -2.2); }
+  g.fillStyle = '#6f7a85'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `700 ${0.115 * S}px Nunito, Arial, sans-serif`;
+  for (let col = 1; col <= 30; col++) { g.fillText(String(col), U(colX(col)), Z(-1.58)); g.fillText(String(col), U(colX(col)), Z(1.58)); }
+  for (const r in ROWZ) { g.fillText(r, U(colX(0)), Z(ROWZ[r])); g.fillText(r, U(colX(31)), Z(ROWZ[r])); }
+  g.font = `800 ${0.2 * S}px Nunito, Arial, sans-serif`;
+  const sign = (t, col, z, fillc) => { g.fillStyle = fillc; g.fillText(t, U(colX(col)), Z(z)); };
+  sign('−', 0, NEG_RAIL_Z, '#2f6fde'); sign('−', 31, NEG_RAIL_Z, '#2f6fde');
+  sign('+', 0, POS_RAIL_Z, '#d93b3b'); sign('+', 31, POS_RAIL_Z, '#d93b3b');
+  sign('−', 0, -2.2, '#2f6fde'); sign('+', 0, -1.95, '#d93b3b');
+  sign('−', 31, -2.2, '#2f6fde'); sign('+', 31, -1.95, '#d93b3b');
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+function makeBreadboard() {
+  const g = new THREE.Group();
+  const W = 8.4, D = 5.3, H = 0.4;
+  g.add(mesh(new THREE.BoxGeometry(W, H, D), mat(0xf2f2ec, { roughness: 0.8 }), 0, -H / 2 - 0.001, 0));
+  const top = mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: breadboardTexture(W, D), roughness: 0.85 }), 0, 0.001, 0, false);
+  top.rotation.x = -Math.PI / 2;
+  g.add(top);
+  tagPart(g, 'breadboard');
+  return g;
+}
+
+/* ---------- controller board ---------- */
+function arduinoTexture(W, D, cx, cz) {
+  const S = 180;
+  const c = document.createElement('canvas');
+  c.width = Math.round(W * S); c.height = Math.round(D * S);
+  const g = c.getContext('2d');
+  const U = (x) => (x - cx + W / 2) * S, Z = (z) => (z - cz + D / 2) * S;
+  g.fillStyle = '#10808d'; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 3;
+  roundRect(g, 10, 10, c.width - 20, c.height - 20, 30); g.stroke();
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `italic 800 ${0.9 * S}px Nunito, Arial, sans-serif`;
+  g.fillText('UNO', U(-1.6), Z(-6.0));
+  g.font = `800 ${0.2 * S}px Nunito, Arial, sans-serif`;
+  g.fillText('CONTROLLER BOARD', U(-1.6), Z(-5.35));
+  g.font = `800 ${0.17 * S}px Nunito, Arial, sans-serif`;
+  g.fillText('DIGITAL (PWM ~)', U(-1.1), Z(-4.62));
+  g.fillText('POWER', U(-0.2), Z(-8.05));
+  g.fillText('ANALOG IN', U(-2.27), Z(-8.05));
+  g.font = `800 ${0.13 * S}px Nunito, Arial, sans-serif`;
+  for (let k = 0; k <= 7; k++) g.fillText(String(k), U(-2.95 + k * P), Z(-4.26));
+  for (let k = 0; k <= 5; k++) g.fillText(String(8 + k), U(-0.8 + k * P), Z(-4.26));
+  const vert = (t, x, z) => { g.save(); g.translate(U(x), Z(z)); g.rotate(-Math.PI / 2); g.textAlign = 'right'; g.fillText(t, 0, 0); g.restore(); };
+  vert('GND', 0.7, -4.17); vert('AREF', 0.95, -4.17); vert('SDA', 1.2, -4.17); vert('SCL', 1.45, -4.17);
+  // highlight the three pins we use
+  g.strokeStyle = '#F2B705'; g.lineWidth = 5;
+  roundRect(g, U(-0.8 - 0.13), Z(-4.4), 0.76 * S, 0.28 * S, 10); g.stroke();
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+function makeArduino() {
+  const g = new THREE.Group();
+  const cx = 0, cz = -6.2, W = 6.9, D = 5.3, y = -0.21;
+  const board = mesh(new THREE.BoxGeometry(W, 0.08, D), mat(0x0d6f7a, { roughness: 0.55 }), cx, y, cz);
+  g.add(board);
+  const top = mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: arduinoTexture(W, D, cx, cz), roughness: 0.55 }), cx, y + 0.041, cz, false);
+  top.rotation.x = -Math.PI / 2;
+  g.add(top);
+  for (const [sx, sz] of [[-3.1, -3.9], [3.0, -3.9], [-3.1, -8.5], [3.0, -8.5]]) g.add(mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.17, 12), metal, sx, -0.32, sz));
+  const black = mat(0x1d2025, { roughness: 0.5 });
+  const hTop = HEADER_TOP, hBot = y + 0.04, hH = hTop - hBot;
+  const header = (x0, x1, z) => {
+    const b = mesh(new THREE.BoxGeometry(x1 - x0, hH, 0.26), black, (x0 + x1) / 2, hBot + hH / 2, z);
+    g.add(b);
+  };
+  header(-3.1, -1.05, HEADER_Z); header(-0.95, 1.6, HEADER_Z);
+  header(-2.98, -1.56, -8.55); header(-1.15, 0.9, -8.55);
+  // header sockets
+  const sock = new THREE.BoxGeometry(0.1, 0.01, 0.1);
+  const sockMat = mat(0x050607, { roughness: 1 });
+  const addSock = (x, z) => g.add(mesh(sock, sockMat, x, hTop + 0.004, z, false));
+  for (let k = 0; k <= 7; k++) addSock(-2.95 + k * P, HEADER_Z);
+  for (let k = 0; k <= 9; k++) addSock(-0.8 + k * P, HEADER_Z);
+  for (let k = 0; k < 6; k++) addSock(-2.9 + k * P, -8.55);
+  for (let k = 0; k < 8; k++) addSock(-1.05 + k * P, -8.55);
+  // USB port, power jack, chip, small parts
+  g.add(mesh(new THREE.BoxGeometry(1.6, 1.05, 1.2), metal, 3.15, y + 0.56, -4.75));
+  g.add(mesh(new THREE.BoxGeometry(1.4, 1.0, 0.9), black, 3.2, y + 0.54, -7.7));
+  g.add(mesh(new THREE.BoxGeometry(3.5, 0.14, 0.75), black, -0.4, y + 0.11, -6.9));
+  for (let k = 0; k < 14; k++) {
+    g.add(mesh(new THREE.BoxGeometry(0.06, 0.1, 0.12), metal, -2.0 + k * 0.245, y + 0.06, -6.47, false));
+    g.add(mesh(new THREE.BoxGeometry(0.06, 0.1, 0.12), metal, -2.0 + k * 0.245, y + 0.06, -7.33, false));
+  }
+  g.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 16), mat(0xe8e8e8, { metalness: 0.5, roughness: 0.3 }), -3.0, y + 0.1, -5.0));
+  g.add(mesh(new THREE.BoxGeometry(0.5, 0.12, 0.5), mat(0xb3b8bd), -3.0, y + 0.07, -5.0));
+  g.add(mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.6, 16), mat(0x2b2f36), 1.9, y + 0.34, -7.9));
+  g.add(mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.6, 16), mat(0x2b2f36), 1.25, y + 0.34, -7.9));
+  g.add(mesh(new THREE.BoxGeometry(0.6, 0.12, 0.25), metal, 1.6, y + 0.1, -5.6));
+  tagPart(g, 'controller');
+  return g;
+}
+
+/* ---------- LED ---------- */
+function flangeGeometry(r, h) {
+  const s = new THREE.Shape();
+  const cut = 0.8 * r, a = Math.acos(cut / r);
+  s.absarc(0, 0, r, a, Math.PI * 2 - a, false);
+  s.lineTo(cut, r * Math.sin(a));
+  const geo = new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: false, curveSegments: 28 });
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
+let glowTexture = null;
+function getGlowTexture() {
+  if (glowTexture) return glowTexture;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.25, 'rgba(255,255,255,.55)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+  glowTexture = new THREE.CanvasTexture(c);
+  return glowTexture;
+}
+function makeLED(hex, scale = 1, legs = [0.5, 0.5], spread = P) {
+  const g = new THREE.Group();
+  const s = scale;
+  const leg = mat(0xc9ced4, { metalness: 0.3, roughness: 0.35 });
+  const legTop = 0.45 * s;
+  const anode = rod(V(0, legTop - legs[0] * s, 0), V(0, legTop, 0), 0.018 * s, leg);
+  const cathode = rod(V(spread, legTop - legs[1] * s, 0), V(spread, legTop, 0), 0.018 * s, leg);
+  g.add(anode, cathode);
+  const body = mat(hex, { transparent: true, opacity: 0.8, roughness: 0.22, emissive: hex, emissiveIntensity: 0.06 });
+  const cx = spread / 2;
+  const flange = mesh(flangeGeometry(0.29 * s, 0.06 * s), body, cx, legTop, 0);
+  const barrel = mesh(new THREE.CylinderGeometry(0.25 * s, 0.25 * s, 0.32 * s, 28), body, cx, legTop + 0.06 * s + 0.16 * s, 0);
+  const dome = mesh(new THREE.SphereGeometry(0.25 * s, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), body, cx, legTop + 0.38 * s, 0);
+  g.add(flange, barrel, dome);
+  const light = new THREE.PointLight(hex, 0, 4.5 * s, 2);
+  light.position.set(cx, legTop + 0.4 * s, 0);
+  g.add(light);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: getGlowTexture(), color: hex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  glow.scale.set(1.7 * s, 1.7 * s, 1);
+  glow.position.set(cx, legTop + 0.35 * s, 0);
+  g.add(glow);
+  g.userData.led = { body, light, glow, base: new THREE.Color(hex), dim: new THREE.Color(hex).lerp(new THREE.Color(0x6b7280), 0.55) };
+  body.color.copy(g.userData.led.dim);
+  return g;
+}
+
+/* ---------- resistor (330 Ω: orange, orange, brown, gold) ---------- */
+function makeResistor() {
+  const g = new THREE.Group();
+  const lead = mat(0xc9ced4, { metalness: 0.3, roughness: 0.35 });
+  const zA = ROWZ.d, zB = ROWZ.g, yb = 0.3, half = 0.27;
+  g.add(rod(V(0, -0.05, zA), V(0, yb, zA), 0.016, lead));
+  g.add(rod(V(0, -0.05, zB), V(0, yb, zB), 0.016, lead));
+  g.add(rod(V(0, yb, zA), V(0, yb, -half), 0.016, lead));
+  g.add(rod(V(0, yb, half), V(0, yb, zB), 0.016, lead));
+  const bodyMat = mat(0xd8c08e, { roughness: 0.5 });
+  const body = mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.42, 20), bodyMat, 0, yb, 0);
+  body.rotation.x = Math.PI / 2;
+  g.add(body);
+  for (const z of [-0.2, 0.2]) g.add(mesh(new THREE.SphereGeometry(0.1, 16, 12), bodyMat, 0, yb, z));
+  const bands = [[-0.17, 0xf08a24], [-0.08, 0xf08a24], [0.01, 0x7a4a22], [0.17, 0xc9a227]];
+  for (const [z, col] of bands) {
+    const b = mesh(new THREE.CylinderGeometry(0.094, 0.094, 0.045, 20), mat(col, { roughness: 0.4, metalness: col === 0xc9a227 ? 0.6 : 0 }), 0, yb, z);
+    b.rotation.x = Math.PI / 2;
+    g.add(b);
+  }
+  return g;
+}
+
+/* ---------- jumper wire ---------- */
+const SEGS = 120, RADIAL = 10;
+function makeWire(points, color) {
+  const g = new THREE.Group();
+  const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+  const geo = new THREE.TubeGeometry(curve, SEGS, 0.045, RADIAL, false);
+  const tube = mesh(geo, mat(color, { roughness: 0.45 }));
+  g.add(tube);
+  const sleeveMat = mat(0x24272c, { roughness: 0.5 });
+  const pinMat = metal;
+  const ends = [];
+  for (const p of [points[0], points[points.length - 1]]) {
+    const e = new THREE.Group();
+    e.add(mesh(new THREE.CylinderGeometry(0.06, 0.06, SLEEVE, 12), sleeveMat, p.x, p.y - SLEEVE / 2, p.z));
+    e.add(mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.12, 8), pinMat, p.x, p.y - SLEEVE - 0.05, p.z));
+    g.add(e); ends.push(e);
+  }
+  const w = { group: g, curve, geo, ends, progress: 1 };
+  w.set = (f) => {
+    w.progress = f;
+    geo.setDrawRange(0, Math.floor(f * SEGS) * RADIAL * 6);
+    ends[0].visible = f > 0;
+    ends[1].visible = f >= 1;
+  };
+  tagPart(g, 'wire');
+  return w;
+}
+
+/* ---------- traffic-light housing ---------- */
+const HOUSING = { W: 6.4, H: 1.1, y0: 0.62, zF: 1.68, zB: 0.8 };
+function makeHousing() {
+  const g = new THREE.Group();
+  const { W, H, y0, zF, zB } = HOUSING;
+  const body = mat(0x2f3640, { roughness: 0.55 });
+  const shape = new THREE.Shape();
+  shape.moveTo(-W / 2, 0); shape.lineTo(W / 2, 0); shape.lineTo(W / 2, H); shape.lineTo(-W / 2, H); shape.lineTo(-W / 2, 0);
+  const lenses = [];
+  CH.forEach((ch) => {
+    const x = colX(ch.col) + P / 2;
+    const hole = new THREE.Path();
+    hole.absarc(x, 0.55, 0.36, 0, Math.PI * 2, true);
+    shape.holes.push(hole);
+  });
+  const front = mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.08, bevelEnabled: false, curveSegments: 32 }), body, 0, y0, zF - 0.08);
+  g.add(front);
+  g.add(mesh(new THREE.BoxGeometry(W, 0.08, zF - zB), body, 0, y0 + H, (zF + zB) / 2));
+  g.add(mesh(new THREE.BoxGeometry(W, H, 0.08), body, 0, y0 + H / 2, zB));
+  for (const sx of [-W / 2, W / 2]) g.add(mesh(new THREE.BoxGeometry(0.08, y0 + H, zF - zB), body, sx, (y0 + H) / 2, (zF + zB) / 2));
+  CH.forEach((ch) => {
+    const x = colX(ch.col) + P / 2;
+    const lensMat = mat(ch.hex, { transparent: true, opacity: 0.55, roughness: 0.2, emissive: ch.hex, emissiveIntensity: 0.04 });
+    const lens = mesh(new THREE.CircleGeometry(0.37, 32), lensMat, x, y0 + 0.55, zF - 0.05, false);
+    g.add(lens); lenses.push(lensMat);
+    const visorGeo = new THREE.CylinderGeometry(0.44, 0.44, 0.45, 28, 1, true, Math.PI / 2, Math.PI);
+    visorGeo.rotateX(Math.PI / 2);
+    const visor = mesh(visorGeo, new THREE.MeshStandardMaterial({ color: 0x2f3640, roughness: 0.55, side: THREE.DoubleSide }), x, y0 + 0.55, zF + 0.22);
+    g.add(visor);
+  });
+  g.userData.lenses = lenses;
+  tagPart(g, 'housing');
+  return g;
+}
+
+/* ---------- guide character: Officer Ohm ---------- */
+function makeCop() {
+  const g = new THREE.Group();
+  const navy = mat(0x2c4e9e, { roughness: 0.7 }), dark = mat(0x1f2a3d, { roughness: 0.7 });
+  const skin = mat(0xf2c9a0, { roughness: 0.8 }), gold = mat(0xf2b705, { metalness: 0.4, roughness: 0.35 });
+  const ink = mat(0x15202a, { roughness: 0.5 });
+  for (const sx of [-0.16, 0.16]) {
+    g.add(mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.7, 14), dark, sx, 0.4, 0));
+    g.add(mesh(new THREE.BoxGeometry(0.24, 0.12, 0.36), ink, sx, 0.06, 0.06));
+  }
+  g.add(mesh(new THREE.CylinderGeometry(0.36, 0.42, 0.9, 20), navy, 0, 1.18, 0));
+  g.add(mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.1, 20), ink, 0, 0.8, 0));
+  g.add(mesh(new THREE.BoxGeometry(0.14, 0.1, 0.05), gold, 0, 0.8, 0.42));
+  g.add(mesh(new THREE.BoxGeometry(0.13, 0.15, 0.04), gold, -0.16, 1.38, 0.37));
+  g.add(mesh(new THREE.SphereGeometry(0.4, 24, 18), skin, 0, 1.98, 0));
+  for (const sx of [-0.14, 0.14]) {
+    g.add(mesh(new THREE.SphereGeometry(0.05, 10, 8), ink, sx, 2.03, 0.36, false));
+    g.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), mat(0xf4a6a0, { roughness: 0.9 }), sx * 1.6, 1.9, 0.32, false));
+  }
+  const smile = mesh(new THREE.TorusGeometry(0.11, 0.022, 8, 18, Math.PI), ink, 0, 1.9, 0.37, false);
+  smile.rotation.z = Math.PI;
+  g.add(smile);
+  g.add(mesh(new THREE.CylinderGeometry(0.4, 0.37, 0.26, 24), dark, 0, 2.38, 0));
+  g.add(mesh(new THREE.CylinderGeometry(0.45, 0.4, 0.06, 24), dark, 0, 2.52, -0.02));
+  g.add(mesh(new THREE.CylinderGeometry(0.41, 0.41, 0.07, 24), ink, 0, 2.27, 0));
+  const brim = mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.04, 20, 1, false, -Math.PI / 2, Math.PI), ink, 0, 2.25, 0.25);
+  g.add(brim);
+  g.add(mesh(new THREE.SphereGeometry(0.07, 12, 10), gold, 0, 2.4, 0.38));
+  const armL = new THREE.Group(); armL.position.set(-0.46, 1.52, 0);
+  armL.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.62, 12), navy, 0, -0.3, 0));
+  armL.add(mesh(new THREE.SphereGeometry(0.11, 12, 10), skin, 0, -0.64, 0));
+  armL.rotation.z = -0.15;
+  const armR = new THREE.Group(); armR.position.set(0.46, 1.52, 0);
+  armR.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.62, 12), navy, 0, -0.3, 0));
+  armR.add(mesh(new THREE.SphereGeometry(0.11, 12, 10), skin, 0, -0.64, 0));
+  armR.rotation.z = 0.15;
+  g.add(armL, armR);
+  g.userData.armR = armR;
+  tagPart(g, 'cop');
+  return g;
+}
+
+/* ---------- enlarged LED on a display stand ---------- */
+function makeBigLED() {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.CylinderGeometry(1.0, 1.1, 0.2, 32), mat(0xffffff, { roughness: 0.6 }), 0, 0.1, 0));
+  g.add(mesh(new THREE.BoxGeometry(0.12, 2.1, 0.12), mat(0xbfe6f0, { transparent: true, opacity: 0.45, roughness: 0.1 }), 0.35, 1.15, -0.55));
+  g.add(mesh(new THREE.BoxGeometry(0.8, 0.08, 0.12), mat(0xbfe6f0, { transparent: true, opacity: 0.45, roughness: 0.1 }), 0.35, 2.2, -0.55));
+  const led = makeLED(0xff3030, 2.6, [0.75, 0.5], 0.7);
+  led.position.set(0, 1.0, 0);
+  led.userData.led.body.color.copy(led.userData.led.base);
+  led.userData.led.body.emissiveIntensity = 0.2;
+  g.add(led);
+  tagPart(g, 'led');
+  return g;
+}
+
+/* =========================================================
+   Build the scene
+   ========================================================= */
+const breadboard = makeBreadboard();
+scene.add(breadboard);
+const arduino = makeArduino();
+scene.add(arduino);
+
+const leds = [], resistors = [], pinWires = [], cathodeWires = [];
+CH.forEach((ch, i) => {
+  const led = makeLED(ch.hex);
+  led.position.set(colX(ch.col), 0, ROWZ.i);
+  tagPart(led, 'led');
+  scene.add(led); leds.push(led);
+
+  const r = makeResistor();
+  r.position.set(colX(ch.col), 0, 0);
+  tagPart(r, 'resistor');
+  scene.add(r); resistors.push(r);
+
+  const A = pinAt(ch.pin, HEADER_TOP + SLEEVE), B = holeAt(ch.col, 'b', SLEEVE);
+  const h = [0, 0.18, 0.36][i];
+  const w = makeWire([
+    A, V(A.x, A.y + 0.45 + h, A.z + 0.12),
+    V((A.x + B.x) / 2, 1.5 + h, (A.z + B.z) / 2 - 0.1),
+    V(B.x, B.y + 0.55, B.z - 0.18), B,
+  ], ch.wire);
+  scene.add(w.group); pinWires.push(w);
+
+  const cA = holeAt(ch.col + 1, 'j', SLEEVE), cB = railAt(ch.col + 1, SLEEVE);
+  const k = makeWire([cA, V(cA.x, cA.y + 0.14, cA.z + 0.2), V(cB.x, cB.y + 0.14, cB.z - 0.2), cB], 0x2b2b2e);
+  scene.add(k.group); cathodeWires.push(k);
+});
+const gA = pinAt('GND', HEADER_TOP + SLEEVE), gB = railAt(30, SLEEVE);
+const gndWire = makeWire([gA, V(0.75, 1.45, -3.62), V(2.9, 1.9, -2.9), V(4.6, 1.5, -0.6), V(4.45, 1.05, 1.5), V(gB.x, 0.72, gB.z), gB], 0x2b2b2e);
+scene.add(gndWire.group);
+
+const housing = makeHousing();
+scene.add(housing);
+const cop = makeCop();
+cop.position.set(-6.6, -0.4, 1.4);
+cop.rotation.y = 0.45;
+scene.add(cop);
+const bigLed = makeBigLED();
+bigLed.position.set(7.4, -0.4, 0.2);
+bigLed.rotation.y = -0.35;
+scene.add(bigLed);
+
+const PARTS = {};
+CH.forEach((_, i) => {
+  PARTS['res' + i] = { obj: resistors[i] };
+  PARTS['led' + i] = { obj: leds[i] };
+  PARTS['w' + i] = { obj: pinWires[i].group, wire: pinWires[i] };
+  PARTS['k' + i] = { obj: cathodeWires[i].group, wire: cathodeWires[i] };
+});
+PARTS.gnd = { obj: gndWire.group, wire: gndWire };
+const ALL_PARTS = Object.keys(PARTS);
+function setPart(id, on) {
+  const p = PARTS[id];
+  p.obj.visible = on;
+  p.obj.position.y = 0;
+  if (p.wire) p.wire.set(on ? 1 : 0);
+}
+
+/* ---------- lights ---------- */
+let litIndex = null;
+function setLights(idx) {
+  if (idx === litIndex) return;
+  litIndex = idx;
+  leds.forEach((led, i) => {
+    const on = i === idx;
+    const L = led.userData.led;
+    L.body.color.copy(on ? L.base : L.dim);
+    L.body.emissiveIntensity = on ? 1.2 : 0;
+    L.body.opacity = on ? 0.98 : 0.7;
+    L.light.intensity = on ? 2.4 : 0;
+    L.glow.material.opacity = on ? 0.95 : 0;
+    const lens = housing.userData.lenses[i];
+    lens.color.copy(on ? L.base : L.dim);
+    lens.emissiveIntensity = on ? 1.3 : 0;
+    lens.opacity = on ? 0.98 : 0.6;
+  });
+}
+
+/* ---------- current flow dots ---------- */
+function buildFlowPath(i) {
+  const ch = CH[i], x = colX(ch.col), xc = colX(ch.col + 1);
+  const pts = [pinAt(ch.pin, 0.6)];
+  pts.push(...pinWires[i].curve.getPoints(50));
+  pts.push(V(x, 0.03, ROWZ.b), V(x, 0.03, ROWZ.d), V(x, 0.3, ROWZ.d), V(x, 0.3, ROWZ.g), V(x, 0.03, ROWZ.g),
+    V(x, 0.03, ROWZ.i), V(x, 0.45, ROWZ.i), V(x + P / 2, 0.72, ROWZ.i), V(xc, 0.45, ROWZ.i), V(xc, 0.03, ROWZ.i), V(xc, 0.03, ROWZ.j));
+  pts.push(...cathodeWires[i].curve.getPoints(16));
+  pts.push(V(xc, 0.03, NEG_RAIL_Z), V(colX(30), 0.03, NEG_RAIL_Z));
+  pts.push(...gndWire.curve.getPoints(60).reverse());
+  pts.push(pinAt('GND', 0.6));
+  const cum = [0];
+  for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + pts[k].distanceTo(pts[k - 1]));
+  return { pts, cum, len: cum[cum.length - 1] };
+}
+const flowPaths = CH.map((_, i) => buildFlowPath(i));
+const DOTS = 26;
+const dotMat = new THREE.MeshBasicMaterial({ color: 0xffd23f, depthTest: false, transparent: true, opacity: 0.95 });
+const dots = [];
+for (let k = 0; k < DOTS; k++) {
+  const d = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), dotMat);
+  d.renderOrder = 10; d.visible = false;
+  scene.add(d); dots.push(d);
+}
+let flowOn = false, flowOffset = 0;
+function pointAlong(path, s) {
+  const { pts, cum } = path;
+  let lo = 0, hi = cum.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] < s) lo = m; else hi = m; }
+  const seg = cum[hi] - cum[lo] || 1;
+  return pts[lo].clone().lerp(pts[hi], (s - cum[lo]) / seg);
+}
+function updateFlow(dt) {
+  const show = flowOn && litIndex != null && litIndex >= 0;
+  dots.forEach((d) => { d.visible = show; });
+  if (!show) return;
+  const path = flowPaths[litIndex];
+  flowOffset = (flowOffset + dt * 1.7) % path.len;
+  const gap = path.len / DOTS;
+  dots.forEach((d, k) => d.position.copy(pointAlong(path, (flowOffset + k * gap) % path.len)));
+}
+
+/* =========================================================
+   Labels that stay readable while the camera moves
+   ========================================================= */
+const labelLayer = $('#labels');
+const labels = [];
+let showLabels = true;
+function addLabel(html, posFn, opt = {}) {
+  const el = document.createElement('div');
+  el.className = 'lbl ' + (opt.cls || '');
+  if (opt.lift != null) el.style.setProperty('--lift', opt.lift + 'px');
+  el.innerHTML = '<span>' + html + '</span>';
+  labelLayer.appendChild(el);
+  const L = { el, pos: typeof posFn === 'function' ? posFn : () => posFn, obj: opt.obj || null, kind: opt.kind || 'part', update: opt.update || null };
+  labels.push(L);
+  return L;
+}
+function removeLabel(L) {
+  const i = labels.indexOf(L);
+  if (i >= 0) labels.splice(i, 1);
+  L.el.remove();
+}
+function visibleInScene(o) {
+  while (o) { if (!o.visible) return false; o = o.parent; }
+  return true;
+}
+const tmpV = new THREE.Vector3();
+function updateLabels() {
+  const w = labelLayer.clientWidth, h = labelLayer.clientHeight;
+  for (const L of labels) {
+    let show = L.kind === 'callout' || (showLabels && (!L.obj || visibleInScene(L.obj)));
+    if (show) {
+      tmpV.copy(L.pos()).project(camera);
+      if (tmpV.z > 1 || tmpV.z < -1) show = false;
+    }
+    if (!show) { if (L.el.style.display !== 'none') L.el.style.display = 'none'; continue; }
+    if (L.el.style.display === 'none') L.el.style.display = '';
+    if (L.update) L.update(L);
+    const x = (tmpV.x + 1) / 2 * w, y = (1 - tmpV.y) / 2 * h;
+    L.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+  }
+}
+
+// Part labels
+const housingDown = () => housing.visible && housing.position.y < 0.5;
+CH.forEach((ch, i) => {
+  const x = colX(ch.col) + P / 2;
+  addLabel(`<i class="dot" style="background:#${ch.hex.toString(16).padStart(6, '0')}"></i>${ch.name.toUpperCase()} LED`,
+    () => housingDown() ? V(x, 1.9, 1.3) : V(x, 1.15, ROWZ.i),
+    { obj: leds[i], cls: 'lamp ' + ch.key, lift: 14, update: (L) => L.el.classList.toggle('on', litIndex === i) });
+  addLabel('330 Ω', V(colX(ch.col) - 0.05, 0.42, -0.15), { obj: resistors[i], lift: 18 });
+});
+addLabel('Controller (Uno)', V(-2.6, -0.1, -7.4), { obj: arduino, lift: 6 });
+addLabel('Breadboard', V(-3.9, 0.02, 2.55), { obj: breadboard, lift: 6 });
+addLabel('Ground rail (−)', V(colX(3), 0.02, NEG_RAIL_Z), { obj: breadboard, lift: 34 });
+addLabel('Jumper wire', () => gndWire.curve.getPoint(0.45), { obj: gndWire.group, lift: 12 });
+addLabel('Traffic-light housing', V(-HOUSING.W / 2, HOUSING.y0 + HOUSING.H + 0.05, HOUSING.zF), { obj: housing, lift: 12 });
+addLabel('Officer Ohm', V(-6.6, 2.7, 1.4), { obj: cop, lift: 8 });
+const pinLabels = ['D8', 'D9', 'D10', 'GND'].map((n, i) => addLabel(n, pinAt(n, HEADER_TOP + 0.05), {
+  obj: arduino, cls: 'pin', lift: [14, 40, 66, 14][i],
+  update: (L) => {
+    if (n === 'GND') return;
+    const high = showPinStates && litIndex === i;
+    const txt = showPinStates ? `${n} ${high ? 'HIGH' : 'LOW'}` : n;
+    if (L._t !== txt) { L.el.firstChild.textContent = txt; L._t = txt; }
+    L.el.classList.toggle('high', high);
+  },
+}));
+let showPinStates = false;
+
+/* =========================================================
+   Temporary step helpers: endpoint rings, strip highlights, callouts
+   ========================================================= */
+let temps = [], callouts = [];
+const basicT = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+function ring(pos, color = 0xf2b705) {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.03, 10, 36), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthTest: false }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.copy(pos); m.position.y += 0.02;
+  m.renderOrder = 6;
+  m.userData.pulse = true;
+  scene.add(m); temps.push(m);
+  return m;
+}
+function strip(points, color) {
+  const g = new THREE.Group();
+  const a = points[0], b = points[points.length - 1];
+  const alongZ = Math.abs(b.z - a.z) > Math.abs(b.x - a.x);
+  const len = a.distanceTo(b) + 0.22;
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? 0.19 : len, 0.01, alongZ ? len : 0.19), basicT(color, 0.42));
+  bar.position.set((a.x + b.x) / 2, 0.009, (a.z + b.z) / 2);
+  g.add(bar);
+  for (const p of points) {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.135, 0.014, 0.135), basicT(color, 0.95));
+    s.position.set(p.x, 0.013, p.z);
+    g.add(s);
+  }
+  g.traverse((o) => { if (o.material) o.userData.o0 = o.material.opacity; });
+  scene.add(g); temps.push(g);
+  return g;
+}
+const column = (c, half) => (half === 'far' ? FAR_ROWS : NEAR_ROWS).map((r) => holeAt(c, r));
+const railPoints = () => RAIL_COLS.map((c) => railAt(c));
+function callout(text, pos, cls = '', lift = 26) {
+  const L = addLabel(text, pos, { kind: 'callout', cls: 'callout ' + cls, lift });
+  callouts.push(L);
+  return L;
+}
+function clearTemps() {
+  temps.forEach((o) => { scene.remove(o); o.traverse((x) => { if (x.geometry) x.geometry.dispose(); if (x.material) x.material.dispose(); }); });
+  temps = [];
+  callouts.forEach(removeLabel);
+  callouts = [];
+}
+
+/* =========================================================
+   Tweens (step animations respect Pause; camera does not)
+   ========================================================= */
+let token = 0, paused = false, tweens = [];
+const easeInOut = (f) => f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+const easeOut = (f) => 1 - Math.pow(1 - f, 3);
+const speed = reduceMotion ? 0.35 : 1;
+function tween(dur, fn, t, ease = easeInOut) {
+  return new Promise((res) => tweens.push({ e: 0, dur: Math.max(0.001, dur * speed), fn, ease, t, res }));
+}
+const wait = (dur, t) => new Promise((res) => tweens.push({ e: 0, dur: Math.max(0.001, dur), fn: () => {}, ease: (f) => f, t, res }));
+function updateTweens(dt) {
+  const keep = [];
+  for (const tw of tweens) {
+    if (tw.t !== token) continue;
+    tw.e += dt;
+    const f = Math.min(1, tw.e / tw.dur);
+    tw.fn(tw.ease(f));
+    if (f >= 1) tw.res(); else keep.push(tw);
+  }
+  tweens = keep;
+}
+function fadeOut(g, dur, t) {
+  return tween(dur, (f) => g.traverse((o) => { if (o.material && o.userData.o0 != null) o.material.opacity = o.userData.o0 * (1 - f); }), t);
+}
+async function dropIn(id, t) {
+  const o = PARTS[id].obj;
+  o.visible = true;
+  await tween(0.8, (f) => { o.position.y = (1 - f) * 1.8; }, t, easeOut);
+}
+async function drawWire(id, t, dur = 1.5) {
+  const w = PARTS[id].wire;
+  w.group.visible = true;
+  await tween(dur, (f) => w.set(f), t);
+}
+const live = $('#live');
+function caption(text) {
+  live.hidden = !text;
+  live.textContent = text || '';
+}
+
+/* ---------- camera ---------- */
+const CAM = {
+  hero: { p: [0.4, 7.2, 12.0], t: [0, 0.4, -1.9] },
+  overview: { p: [0.6, 11.5, 11.8], t: [0, 0, -2.6] },
+  led: { p: [9.8, 4.0, 7.8], t: [7.3, 1.4, 0.2] },
+  board: { p: [0, 8.6, 7.4], t: [0, 0, 0.3] },
+  red: { p: [-2.2, 6.6, 5.4], t: [-1.4, 0.3, -1.5] },
+  yellow: { p: [-0.4, 6.6, 5.4], t: [-0.3, 0.3, -1.5] },
+  green: { p: [1.6, 6.6, 5.4], t: [0.8, 0.3, -1.5] },
+  cathodes: { p: [0.2, 6.6, 9.0], t: [0, 0.2, 1.1] },
+  gnd: { p: [8.6, 7.6, 6.2], t: [1.8, 0.3, -1.4] },
+  loop: { p: [2.6, 10.2, 10.4], t: [0.4, 0, -1.9] },
+  setup: { p: [-0.2, 6.4, 3.4], t: [-0.3, 0, -4.8] },
+  code: { p: [1.0, 8.2, 10.8], t: [0.2, 0.3, -2.2] },
+};
+let camTw = null;
+function flyTo(key, instant) {
+  const c = CAM[key];
+  const to = { p: V(...c.p), t: V(...c.t) };
+  const aspect = camera.aspect;
+  if (aspect < 1.25) {
+    const k = 1 + (1.25 - aspect) * 0.9;
+    to.p.sub(to.t).multiplyScalar(k).add(to.t);
+  }
+  if (instant || reduceMotion) {
+    camera.position.copy(to.p); controls.target.copy(to.t); camTw = null; return;
+  }
+  camTw = { e: 0, dur: 1.3, fp: camera.position.clone(), ft: controls.target.clone(), to };
+}
+function updateCam(dt) {
+  if (!camTw) return;
+  camTw.e += dt;
+  const f = easeInOut(Math.min(1, camTw.e / camTw.dur));
+  camera.position.lerpVectors(camTw.fp, camTw.to.p, f);
+  controls.target.lerpVectors(camTw.ft, camTw.to.t, f);
+  if (f >= 1) camTw = null;
+}
+controls.addEventListener('start', () => { camTw = null; });
+
+/* =========================================================
+   Traffic-light sequence: red 5 s → green (2–10 s) → yellow 2 s
+   ========================================================= */
+const DEFAULT_GREEN = 5;
+let greenDur = DEFAULT_GREEN;
+const PHASES = [{ ch: 0, block: 'p0' }, { ch: 2, block: 'p1' }, { ch: 1, block: 'p2' }];
+const phaseDur = (k) => [5, greenDur, 2][k];
+const seq = { running: false, phase: 0, remaining: 5, manual: false };
+function startSeq() { seq.running = true; seq.phase = 0; seq.remaining = phaseDur(0); seq.manual = false; }
+function updateSeq(dt) {
+  if (!seq.running) { setLights(-1); return; }
+  if (!seq.manual) {
+    seq.remaining -= dt;
+    while (seq.remaining <= 0) {
+      seq.phase = (seq.phase + 1) % 3;
+      seq.remaining += phaseDur(seq.phase);
+    }
+  }
+  setLights(PHASES[seq.phase].ch);
+}
+function stepPhase() {
+  if (!seq.running) startSeq();
+  seq.manual = true;
+  seq.phase = (seq.phase + 1) % 3;
+  seq.remaining = phaseDur(seq.phase);
+  refreshStepper();
+}
+
+/* =========================================================
+   Code panel
+   ========================================================= */
+const CODE = [
+  ['// My First Traffic Light', ''],
+  ['const int RED = 8;', 'pins'],
+  ['const int YELLOW = 9;', 'pins'],
+  ['const int GREEN = 10;', 'pins'],
+  ['', ''],
+  ['void setup() {', 'setup'],
+  ['  pinMode(RED, OUTPUT);', 'setup'],
+  ['  pinMode(YELLOW, OUTPUT);', 'setup'],
+  ['  pinMode(GREEN, OUTPUT);', 'setup'],
+  ['}', 'setup'],
+  ['', ''],
+  ['void loop() {', ''],
+  ['  // Red light: stop', 'p0'],
+  ['  digitalWrite(RED, HIGH);', 'p0', 'key'],
+  ['  digitalWrite(YELLOW, LOW);', 'p0'],
+  ['  digitalWrite(GREEN, LOW);', 'p0'],
+  ['  delay(5000);', 'p0', 'delay'],
+  ['', ''],
+  ['  // Green light: go', 'p1'],
+  ['  digitalWrite(RED, LOW);', 'p1'],
+  ['  digitalWrite(YELLOW, LOW);', 'p1'],
+  ['  digitalWrite(GREEN, HIGH);', 'p1', 'key'],
+  ['  delay(GREEN_MS);', 'p1', 'delay'],
+  ['', ''],
+  ['  // Yellow light: get ready to stop', 'p2'],
+  ['  digitalWrite(RED, LOW);', 'p2'],
+  ['  digitalWrite(YELLOW, HIGH);', 'p2', 'key'],
+  ['  digitalWrite(GREEN, LOW);', 'p2'],
+  ['  delay(2000);', 'p2', 'delay'],
+  ['}', ''],
+];
+function highlightCode(src) {
+  const esc = src.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return esc.replace(/(\/\/.*$)|\b(void|const|int)\b|\b(pinMode|digitalWrite|delay)\b|\b(HIGH|LOW|OUTPUT)\b|\b(GREEN_MS)\b|\b(\d+)\b/g,
+    (m, c, kw, fn, k2, gm, num) => {
+      if (c) return `<span class="c">${c}</span>`;
+      if (kw) return `<span class="kw">${kw}</span>`;
+      if (fn) return `<span class="fn">${fn}</span>`;
+      if (k2) return `<span class="k2">${k2}</span>`;
+      if (gm) return `<span class="num" id="greenMs">${greenDur * 1000}</span>`;
+      return `<span class="num">${num}</span>`;
+    });
+}
+const codeCard = document.createElement('div');
+codeCard.className = 'code-card';
+codeCard.innerHTML = `
+  <div class="code-head"><span>traffic_light.ino</span>
+    <div class="code-btns" id="stepper">
+      <button type="button" id="stepBtn">Step through ▸|</button>
+      <button type="button" id="autoBtn" class="on">Auto play</button>
+    </div>
+  </div>
+  <pre class="code" id="codePre" aria-label="Arduino program"></pre>
+  <p class="code-note" id="codeNote"></p>`;
+const codePre = codeCard.querySelector('#codePre');
+const lineEls = CODE.map(([src, block, role], n) => {
+  const el = document.createElement('span');
+  el.className = 'ln';
+  el.dataset.n = String(n + 1);
+  el.dataset.b = block;
+  if (role) el.dataset.role = role;
+  el.innerHTML = highlightCode(src) || ' ';
+  codePre.appendChild(el);
+  return el;
+});
+const ticks = {};
+lineEls.forEach((el) => {
+  if (el.dataset.role === 'delay') {
+    const t = document.createElement('span');
+    t.className = 'tick'; t.hidden = true;
+    el.appendChild(t);
+    ticks[el.dataset.b] = t;
+  }
+});
+codeCard.querySelector('#stepBtn').addEventListener('click', stepPhase);
+codeCard.querySelector('#autoBtn').addEventListener('click', () => {
+  if (!seq.running) startSeq();
+  seq.manual = false;
+  refreshStepper();
+});
+function refreshStepper() {
+  codeCard.querySelector('#stepBtn').classList.toggle('on', seq.manual);
+  codeCard.querySelector('#autoBtn').classList.toggle('on', !seq.manual);
+}
+let codeOverride = null, lastCodeKey = '';
+function setCodeNote(html) { codeCard.querySelector('#codeNote').innerHTML = html; }
+function updateCodeHighlight() {
+  if (!codeCard.isConnected) return;
+  let block = codeOverride ? codeOverride.block : null;
+  let only = codeOverride ? codeOverride.line : null;
+  if (!codeOverride && seq.running) block = PHASES[seq.phase].block;
+  const secs = Math.max(1, Math.ceil(seq.remaining - 1e-6));
+  const key = `${block}|${only}|${secs}|${seq.manual}|${paused}`;
+  if (key === lastCodeKey) return;
+  lastCodeKey = key;
+  let first = null;
+  lineEls.forEach((el, n) => {
+    const on = only != null ? n === only : (block && el.dataset.b === block);
+    el.classList.toggle('hl', !!on);
+    el.classList.toggle('key', !!on && el.dataset.role === 'key');
+    if (on && !first) first = el;
+  });
+  for (const b in ticks) {
+    const t = ticks[b];
+    const on = !codeOverride && seq.running && b === block;
+    t.hidden = !on;
+    if (on) t.textContent = seq.manual ? 'waiting… press Step through' : paused ? `paused · ${secs} s left` : `waiting · ${secs} s left`;
+  }
+  if (first) {
+    const top = first.offsetTop - 8, bottom = top + 8 * 20;
+    if (top < codePre.scrollTop || bottom > codePre.scrollTop + codePre.clientHeight) codePre.scrollTop = Math.max(0, top - 30);
+  }
+  if (!codeOverride && seq.running) {
+    const ch = CH[PHASES[seq.phase].ch];
+    setCodeNote(`Now: <b>${ch.name.toUpperCase()}</b> pin ${ch.num} is HIGH (on). The other two are LOW (off).`);
+  }
+}
+function setGreen(sec) {
+  greenDur = sec;
+  const el = codeCard.querySelector('#greenMs');
+  if (el) {
+    el.textContent = String(sec * 1000);
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    clearTimeout(setGreen._t); setGreen._t = setTimeout(() => el.classList.remove('flash'), 700);
+  }
+  if (seq.running && seq.phase === 1 && seq.remaining > sec) seq.remaining = sec;
+  if (seq.running && seq.phase === 1 && seq.manual) seq.remaining = sec;
+  updateCycle(true);
+}
+
+/* =========================================================
+   Lesson steps
+   ========================================================= */
+const STAGES = [
+  { letter: 'A', name: 'See it' },
+  { letter: 'B', name: 'Meet the parts' },
+  { letter: 'C', name: 'Build it' },
+  { letter: 'D', name: 'Code it' },
+  { letter: 'E', name: 'Experiment' },
+];
+const chain = (...is) => is.flatMap((i) => ['res' + i, 'led' + i, 'w' + i]);
+const T = (w, def) => `<span class="term" title="${def}">${w}</span>`;
+const PLAN = [
+  'D8 → 330 Ω resistor → red LED anode',
+  'D9 → 330 Ω resistor → yellow LED anode',
+  'D10 → 330 Ω resistor → green LED anode',
+  'All three LED cathodes → ground rail',
+  'Ground rail → controller GND',
+];
+
+const STEPS = [
+  { stage: 0, title: 'See what we are building', cam: 'hero', housing: true, seq: true, extra: 'A',
+    text: 'We will teach a small computer to turn three lights on and off in a repeating pattern. Red stays on for 5 seconds, green for 5 seconds, then yellow for 2 seconds, and it repeats.' },
+  { stage: 1, title: 'Meet the parts', cam: 'overview', extra: 'B1',
+    text: 'Click each part on the table to highlight it and learn its job. Can you find all five?' },
+  { stage: 1, title: 'Look closely at an LED', cam: 'led', bigLed: true, extra: 'B2', play: playB2,
+    text: `An LED is a light that lets electricity flow in only one direction, so its two legs are different. The longer leg of a new, untrimmed LED is usually the ${T('anode', 'the + leg, where current goes in')} (+), and the flat edge on the rim marks the ${T('cathode', 'the − leg, where current comes out')} (−).` },
+  { stage: 2, title: 'How a breadboard connects', cam: 'board', build: [], extra: 'C1', play: playC1,
+    text: 'Under the plastic, metal clips join some holes together. The 5 holes in each short row are connected, and the long ground rail is connected all the way along.' },
+  { stage: 2, title: 'Red: D8 → resistor → LED', cam: 'red', build: [], plan: 0, play: (t) => buildChain(0, t),
+    text: 'A wire joins pin D8 to row 7, and a 330 Ω resistor carries the signal across the middle gap to the red LED’s long leg (anode). The short leg (cathode) goes in row 8, a separate row.' },
+  { stage: 2, title: 'Yellow: D9 → resistor → LED', cam: 'yellow', build: chain(0), plan: 1, play: (t) => buildChain(1, t),
+    text: 'Same pattern: pin D9 goes to row 15, through its own 330 Ω resistor, to the yellow LED’s anode. Every LED gets its own resistor.' },
+  { stage: 2, title: 'Green: D10 → resistor → LED', cam: 'green', build: chain(0, 1), plan: 2, play: (t) => buildChain(2, t),
+    text: 'Pin D10 goes to row 23, through a third 330 Ω resistor, to the green LED’s anode. Its cathode sits in row 24.' },
+  { stage: 2, title: 'Cathodes to the ground rail', cam: 'cathodes', build: chain(0, 1, 2), plan: 3, play: playC5,
+    text: `Short black wires join each LED’s cathode row to the ground rail (−). ${T('Ground', 'the shared return path back to the controller')} is the path electricity uses to get back to the controller.` },
+  { stage: 2, title: 'Ground rail to GND', cam: 'gnd', build: chain(0, 1, 2).concat(['k0', 'k1', 'k2']), plan: 4, play: playC6,
+    text: 'One more black wire joins the ground rail to the controller’s GND pin. Now each light has a complete loop.' },
+  { stage: 2, title: 'The loop is complete', cam: 'loop', seq: true, flow: true, plan: 5, extra: 'C7',
+    text: `Electricity flows out of a pin, through the resistor and the LED, and back to GND. A complete loop like this is called a ${T('circuit', 'a complete loop that electricity can flow around')}.` },
+  { stage: 3, title: 'setup(): get the pins ready', cam: 'setup', housing: true, code: true, pinStates: true, play: playD1,
+    text: `setup() runs once when the controller starts. pinMode(…, OUTPUT) makes pins 8, 9 and 10 ${T('outputs', 'pins that send electricity out')}, so they can send electricity out to the lights.` },
+  { stage: 3, title: 'loop(): the code runs the lights', cam: 'code', housing: true, seq: true, code: true, stepper: true, pinStates: true,
+    text: 'HIGH turns this output on. LOW turns it off. The delay tells the program how long to wait.' },
+  { stage: 4, title: 'Experiment: a longer green light', cam: 'hero', housing: true, seq: true, code: true, stepper: true, extra: 'E1', pinStates: true,
+    text: 'Drag the slider to change how long the green light stays on, from 2 to 10 seconds. The light, the countdown and the code all change together.' },
+  { stage: 4, title: 'Quick quiz', cam: 'hero', housing: true, seq: true, extra: 'E2',
+    text: 'One last question to check what you learned.' },
+];
+
+let stepIndex = 0;
+const partsFound = new Set();
+let quiz = { choice: null, solved: false };
+let revealOpen = false;
+
+const PART_INFO = {
+  controller: { name: 'Controller (Uno-style board)', purpose: 'Follows our instructions and controls the lights.', more: 'We load a program onto it. The program switches pins D8, D9 and D10 on and off.' },
+  led: { name: 'LED', purpose: 'A small light that lets electricity flow in one direction.', more: 'LED stands for light-emitting diode. Its long leg (anode, +) must face the pin, and its short leg (cathode, −) faces ground.' },
+  resistor: { name: '330 Ω resistor', purpose: 'Limits the current to help protect the LED.', more: 'Current means how much electricity is flowing. Ω (ohm) is the unit for resistance; the bands orange, orange, brown mean 330.' },
+  breadboard: { name: 'Breadboard', purpose: 'Holds connections so we can build without soldering.', more: 'Soldering means joining metal with melted metal. On a breadboard you just push parts into the holes.' },
+  wire: { name: 'Jumper wire', purpose: 'Connects one part of the circuit to another.', more: 'Each end has a metal pin that pushes into a hole on the board or the controller.' },
+  housing: { name: 'Traffic-light housing', purpose: 'A plastic cover that makes our LEDs look like a real traffic light.', more: 'It is only a cover. It is not part of the circuit, so no electricity flows through it.' },
+  cop: { name: 'Officer Ohm', purpose: 'Your guide for this lesson.', more: 'Officer Ohm is named after the ohm (Ω), the unit we use to measure resistors.' },
+};
+const CORE_PARTS = ['controller', 'led', 'resistor', 'breadboard', 'wire'];
+
+/* ---------- step animations ---------- */
+async function playB2(t) {
+  const bl = bigLed.children.find((c) => c.userData.led);
+  const at = (x, y, z) => () => bl.localToWorld(V(x, y, z));
+  await wait(0.9, t); if (t !== token) return;
+  callout('Anode (+) · longer leg', at(0, 1.17 - 0.75 * 2.6 * 0.5, 0), 'gold', 22);
+  await wait(0.9, t); if (t !== token) return;
+  callout('Cathode (−) · shorter leg', at(0.7, 1.17 - 0.5 * 2.6 * 0.4, 0), 'blue', 22);
+  await wait(0.9, t); if (t !== token) return;
+  callout('Flat edge = cathode side', at(0.95, 1.2, 0), '', 70);
+}
+async function playC1(t) {
+  caption('Watch the glowing holes: glowing together means connected');
+  await wait(1.0, t); if (t !== token) return;
+  let s = strip(column(7, 'far'), 0xf2b705);
+  let c = callout('These 5 holes are connected (row 7)', holeAt(7, 'a', 0.02), 'gold', 30);
+  await wait(3.0, t); if (t !== token) return;
+  const s2 = strip(column(7, 'near'), 0x2f6fde);
+  const c2 = callout('A separate group of 5 (also row 7)', holeAt(7, 'j', 0.02), 'blue', 30);
+  callout('The middle gap keeps the two halves apart', V(colX(12), 0.02, 0), '', 54);
+  await wait(3.2, t); if (t !== token) return;
+  fadeOut(s, 0.6, t); fadeOut(s2, 0.6, t); removeLabel(c); removeLabel(c2);
+  callouts = callouts.filter((L) => L !== c && L !== c2);
+  const r = strip(railPoints(), 0x2e3136);
+  callout('Ground rail (−): connected all the way along', railAt(20, 0.02), 'ground', 30);
+  await wait(3.5, t); if (t !== token) return;
+  fadeOut(r, 0.8, t);
+  caption('');
+}
+async function buildChain(i, t) {
+  const ch = CH[i];
+  const cs = (txt) => { if (t === token) caption(txt); };
+  // 1) the wire
+  cs(`Find both ends: pin ${ch.pin} and row ${ch.col}`);
+  const r1 = ring(pinAt(ch.pin, HEADER_TOP)), r2 = ring(holeAt(ch.col, 'b'));
+  const c1 = callout(`Pin ${ch.pin}`, pinAt(ch.pin, HEADER_TOP + 0.05), 'gold', 34);
+  const c2 = callout(`Row ${ch.col}`, holeAt(ch.col, 'b', 0.02), 'gold', 30);
+  await wait(1.6, t); if (t !== token) return;
+  cs(`Drawing a jumper wire from ${ch.pin} to row ${ch.col}`);
+  await drawWire('w' + i, t); if (t !== token) return;
+  [r1, r2].forEach((m) => { m.visible = false; });
+  // 2) the resistor
+  cs('Find both ends for the 330 Ω resistor: across the middle gap');
+  const r3 = ring(holeAt(ch.col, 'd')), r4 = ring(holeAt(ch.col, 'g'));
+  await wait(1.3, t); if (t !== token) return;
+  cs('Pushing in the 330 Ω resistor');
+  await dropIn('res' + i, t); if (t !== token) return;
+  [r3, r4].forEach((m) => { m.visible = false; });
+  removeLabel(c1); removeLabel(c2);
+  const sFar = strip(column(ch.col, 'far'), 0xf2b705);
+  cs(`Wire and resistor share row ${ch.col}, so they are connected`);
+  await wait(2.2, t); if (t !== token) return;
+  fadeOut(sFar, 0.6, t);
+  // 3) the LED
+  cs(`Find both ends for the ${ch.name.toLowerCase()} LED: rows ${ch.col} and ${ch.col + 1}`);
+  const r5 = ring(holeAt(ch.col, 'i')), r6 = ring(holeAt(ch.col + 1, 'i'), 0x2f6fde);
+  await wait(1.3, t); if (t !== token) return;
+  cs(`Pushing in the ${ch.name.toLowerCase()} LED`);
+  await dropIn('led' + i, t); if (t !== token) return;
+  [r5, r6].forEach((m) => { m.visible = false; });
+  strip(column(ch.col, 'near'), 0xf2b705);
+  strip(column(ch.col + 1, 'near'), 0x2f6fde);
+  callout(`Anode (long leg) · row ${ch.col}`, holeAt(ch.col, 'h', 0.02), 'gold', 74);
+  callout(`Cathode (short leg) · row ${ch.col + 1}`, holeAt(ch.col + 1, 'j', 0.02), 'blue', 30);
+  cs(`Resistor meets the anode in row ${ch.col}. The cathode is alone in row ${ch.col + 1}.`);
+  await wait(3.5, t);
+  if (t === token) caption(`Done! Click Next when you are ready.`);
+}
+async function playC5(t) {
+  for (let i = 0; i < 3; i++) {
+    const ch = CH[i];
+    if (t !== token) return;
+    caption(`Find both ends: row ${ch.col + 1} and the ground rail`);
+    const a = ring(holeAt(ch.col + 1, 'j'), 0x2f6fde), b = ring(railAt(ch.col + 1));
+    await wait(1.1, t); if (t !== token) return;
+    caption(`Wiring the ${ch.name.toLowerCase()} LED’s cathode to ground`);
+    await drawWire('k' + i, t, 0.9); if (t !== token) return;
+    a.visible = b.visible = false;
+  }
+  const r = strip(railPoints(), 0x2e3136);
+  callout('All three cathodes now share the ground rail', railAt(18, 0.02), 'ground', 30);
+  caption('Done! Click Next when you are ready.');
+  await wait(3.5, t); if (t !== token) return;
+  fadeOut(r, 0.8, t);
+}
+async function playC6(t) {
+  caption('Find both ends: the GND pin and the ground rail');
+  const a = ring(pinAt('GND', HEADER_TOP)), b = ring(railAt(30));
+  callout('GND pin', pinAt('GND', HEADER_TOP + 0.05), 'ground', 34);
+  callout('Ground rail', railAt(30, 0.02), 'ground', 30);
+  await wait(1.6, t); if (t !== token) return;
+  caption('Drawing the ground wire');
+  await drawWire('gnd', t, 1.8); if (t !== token) return;
+  a.visible = b.visible = false;
+  const r = strip(railPoints(), 0x2e3136);
+  caption('Done! Every LED now has a path back to GND.');
+  await wait(3.0, t); if (t !== token) return;
+  fadeOut(r, 0.8, t);
+}
+async function playD1(t) {
+  codeOverride = { block: 'pins' };
+  setCodeNote('<b>const int RED = 8;</b> gives pin 8 a friendly name, so the code is easier to read.');
+  const rings = ['D8', 'D9', 'D10'].map((n) => ring(pinAt(n, HEADER_TOP)));
+  await wait(3.2, t); if (t !== token) return;
+  const lines = [6, 7, 8];
+  for (let k = 0; k < 3; k++) {
+    codeOverride = { line: lines[k] };
+    setCodeNote(`<b>pinMode(${['RED', 'YELLOW', 'GREEN'][k]}, OUTPUT)</b> makes pin ${CH[k].num} an output.`);
+    rings.forEach((r, j) => { r.visible = j === k; });
+    callout(`${CH[k].pin}: OUTPUT`, pinAt(CH[k].pin, HEADER_TOP + 0.05), 'gold', [16, 46, 76][k]);
+    await wait(2.0, t); if (t !== token) return;
+  }
+  rings.forEach((r) => { r.visible = true; });
+  codeOverride = { block: 'setup' };
+  setCodeNote('setup() is finished. All lights start off (LOW) until loop() begins. Click <b>Next</b>.');
+}
+
+/* ---------- panel rendering ---------- */
+const extra = $('#extra');
+function el(html) { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild; }
+function phaseList() {
+  return el(`<div class="card"><h4>The pattern</h4><ul class="list" id="phaseList">
+    <li data-phase="0"><i class="chip-lamp red"></i><b>RED</b> Stop <span class="secs">5 s</span></li>
+    <li data-phase="1"><i class="chip-lamp green"></i><b>GREEN</b> Go <span class="secs" id="greenSecs">${greenDur} s</span></li>
+    <li data-phase="2"><i class="chip-lamp yellow"></i><b>YELLOW</b> Get ready to stop <span class="secs">2 s</span></li>
+  </ul><p class="note" style="margin-top:8px">Only one light is on at a time. Then the pattern repeats.</p></div>`);
+}
+function planList(cur) {
+  const items = PLAN.map((txt, k) => {
+    const cls = k < cur ? 'done' : k === cur ? 'now' : '';
+    return `<li class="${cls}"><span class="check">✓</span><span class="mono">${txt}</span></li>`;
+  }).join('');
+  return el(`<div class="card"><h4>Wiring plan</h4><ul class="list">${items}</ul></div>`);
+}
+function renderExtra(s) {
+  extra.innerHTML = '';
+  if (s.extra === 'A') extra.appendChild(phaseList());
+  if (s.extra === 'B1') {
+    const items = CORE_PARTS.map((p) => `<li class="part-item ${partsFound.has(p) ? 'done' : ''}" data-part="${p}" tabindex="0" role="button"><span class="check">✓</span><span><b>${PART_INFO[p].name}</b></span></li>`).join('');
+    const card = el(`<div class="card"><h4>Parts found: <span id="foundCount">${partsFound.size}</span> of 5</h4><ul class="list" id="partList">${items}</ul>
+      <p class="note" style="margin-top:8px">Tip: click a part in the 3D scene, or pick one from this list.</p></div>`);
+    card.querySelectorAll('[data-part]').forEach((li) => {
+      const go = () => selectPart(li.dataset.part, null);
+      li.addEventListener('click', go);
+      li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    });
+    extra.appendChild(card);
+  }
+  if (s.extra === 'B2') {
+    extra.appendChild(el(`<div class="card"><h4>How to tell the legs apart</h4><div class="legend">
+      <div><i class="sw" style="background:var(--hl)"></i><span><b>Anode (+)</b>: usually the longer leg. It connects toward the pin.</span></div>
+      <div><i class="sw" style="background:#2F6FDE"></i><span><b>Cathode (−)</b>: shorter leg, next to the flat edge. It connects toward ground.</span></div>
+    </div><p class="note" style="margin-top:8px">If the legs have been cut to the same length, look for the flat edge instead.</p></div>`));
+  }
+  if (s.extra === 'C1') {
+    extra.appendChild(el(`<div class="card"><h4>What the glow means</h4><div class="legend">
+      <div><i class="sw" style="background:var(--hl)"></i><span>Gold holes are connected to each other.</span></div>
+      <div><i class="sw" style="background:#2F6FDE"></i><span>Blue holes are a different, separate group.</span></div>
+      <div><i class="sw" style="background:var(--ground)"></i><span>Dark holes are the ground rail.</span></div>
+    </div></div>`));
+    extra.appendChild(planList(-1));
+  }
+  if (s.plan != null) extra.appendChild(planList(s.plan));
+  if (s.extra === 'C7') {
+    extra.appendChild(el(`<div class="card"><h4>Follow the dots</h4><p class="note">The yellow dots show the path for whichever light is on: pin → wire → resistor → LED → ground rail → GND.</p></div>`));
+    extra.appendChild(el(`<p class="note safety"><b>Remember:</b> this animation shows how the circuit works. It is not a safety test, so ask an adult to check a real circuit before you plug it in.</p>`));
+  }
+  if (s.extra === 'E1') {
+    const card = el(`<div class="card"><h4>Green-light time</h4>
+      <div class="slider-row"><input type="range" id="greenRange" min="2" max="10" step="1" value="${greenDur}" aria-label="Green light time in seconds"><span class="slider-val" id="greenVal">${greenDur} s</span></div>
+      <div class="ticks"><span>2 s</span><span>6 s</span><span>10 s</span></div>
+      <p class="sum" id="sumLine"></p>
+      <hr style="border:0;border-top:1px solid var(--line);margin:12px 0">
+      <p class="question">What changes when the green light stays on longer?</p>
+      <button class="btn" id="revealBtn" type="button" aria-expanded="${revealOpen}">${revealOpen ? 'Hide the answer' : 'Think first, then show the answer'}</button>
+      <div class="reveal" id="revealBox" ${revealOpen ? '' : 'hidden'}>Cars get more time to go, and one full cycle takes longer. Red (5 s) and yellow (2 s) stay the same. Only one number in the code changed: the green delay.</div>
+    </div>`);
+    const range = card.querySelector('#greenRange');
+    range.addEventListener('input', () => { setGreen(+range.value); updateSumLine(); });
+    card.querySelector('#revealBtn').addEventListener('click', (e) => {
+      revealOpen = !revealOpen;
+      card.querySelector('#revealBox').hidden = !revealOpen;
+      e.currentTarget.textContent = revealOpen ? 'Hide the answer' : 'Think first, then show the answer';
+      e.currentTarget.setAttribute('aria-expanded', String(revealOpen));
+    });
+    extra.appendChild(card);
+  }
+  if (s.code) {
+    codeCard.querySelector('#stepper').hidden = !s.stepper;
+    refreshStepper();
+    lastCodeKey = '';
+    if (!s.play) setCodeNote('');
+    extra.appendChild(codeCard);
+  }
+  if (s.extra === 'E1') updateSumLine();
+  if (s.extra === 'E2') extra.appendChild(renderQuiz());
+}
+function updateSumLine() {
+  const v = $('#greenVal'), sl = $('#sumLine');
+  if (v) v.textContent = greenDur + ' s';
+  if (sl) sl.textContent = `One full cycle: 5 + ${greenDur} + 2 = ${7 + greenDur} seconds`;
+  const gs = $('#greenSecs');
+  if (gs) gs.textContent = greenDur + ' s';
+}
+const QUIZ = {
+  q: 'Why does each LED need a resistor?',
+  opts: [
+    'So the LED can change colour',
+    'To limit the current and help protect the LED',
+    'To store the program for the lights',
+    'To make the jumper wires longer',
+  ],
+  right: 1,
+};
+function renderQuiz() {
+  const card = el(`<div class="card"><p class="question">${QUIZ.q}</p><div class="quiz-opts" role="group" aria-label="Answers"></div><div id="quizFb" aria-live="polite"></div></div>`);
+  const box = card.querySelector('.quiz-opts');
+  QUIZ.opts.forEach((txt, k) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = `<b>${'ABCD'[k]}</b><span>${txt}</span>`;
+    if (quiz.choice === k) b.classList.add(k === QUIZ.right ? 'right' : 'wrong');
+    if (quiz.solved && k === QUIZ.right) b.classList.add('right');
+    b.addEventListener('click', () => { quiz.choice = k; if (k === QUIZ.right) quiz.solved = true; const n = renderQuiz(); card.replaceWith(n); });
+    box.appendChild(b);
+  });
+  const fb = card.querySelector('#quizFb');
+  if (quiz.choice != null) {
+    if (quiz.choice === QUIZ.right) {
+      fb.innerHTML = `<div class="feedback good"><b>Yes, great thinking!</b><p style="margin:4px 0 0">A resistor limits how much current flows. Without one, too much current could flow through the LED and damage it or the controller pin. Each LED has its own resistor, so each light is protected on its own.</p><p style="margin:6px 0 0"><b style="font-size:16px">You finished the lesson!</b> You built a circuit and controlled it with code.</p></div>`;
+    } else {
+      fb.innerHTML = `<div class="feedback try"><b>Good try!</b><p style="margin:4px 0 0">That is not the job of a resistor. Hint: look back at what the resistor does to the flow of electricity. Pick another answer.</p></div>`;
+    }
+  }
+  return card;
+}
+
+/* ---------- header progress ---------- */
+const stagesNav = $('#stages');
+STAGES.forEach((st, k) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'stage-pill';
+  b.innerHTML = `<b>${st.letter}</b><span>${st.name}</span>`;
+  b.setAttribute('aria-label', `Stage ${st.letter}: ${st.name}`);
+  b.addEventListener('click', () => goTo(STEPS.findIndex((s) => s.stage === k)));
+  stagesNav.appendChild(b);
+});
+function updateNav() {
+  const s = STEPS[stepIndex];
+  [...stagesNav.children].forEach((b, k) => {
+    b.classList.toggle('current', k === s.stage);
+    b.classList.toggle('done', k < s.stage);
+    if (k === s.stage) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+  });
+  const pct = Math.round(((stepIndex + 1) / STEPS.length) * 100);
+  $('#progressFill').style.width = pct + '%';
+  $('#progressBar').setAttribute('aria-valuenow', String(pct));
+  $('#progressText').textContent = `Step ${stepIndex + 1} of ${STEPS.length}`;
+  $('#prev').disabled = stepIndex === 0;
+  $('#next').disabled = stepIndex === STEPS.length - 1;
+  const st = STAGES[s.stage];
+  $('#stageName').textContent = `Stage ${st.letter} · ${st.name}`;
+  $('#stepTitle').textContent = s.title;
+  $('#stepText').innerHTML = s.text;
+}
+
+/* ---------- selection / info card ---------- */
+let selHelper = null;
+const info = $('#info');
+function clearSelection() {
+  if (selHelper) { scene.remove(selHelper); selHelper.geometry.dispose(); selHelper = null; }
+}
+function hideInfo() { info.hidden = true; clearSelection(); }
+function selectPart(part, obj) {
+  clearSelection();
+  if (!obj) {
+    const candidates = pickables.filter((o) => o.userData.part === part && visibleInScene(o));
+    obj = candidates[0] || null;
+  }
+  if (obj) {
+    selHelper = new THREE.BoxHelper(obj, 0xf2b705);
+    selHelper.material.depthTest = false;
+    selHelper.material.transparent = true;
+    selHelper.renderOrder = 8;
+    selHelper.userData.target = obj;
+    scene.add(selHelper);
+  }
+  const d = PART_INFO[part];
+  $('#infoTitle').textContent = d.name;
+  $('#infoPurpose').textContent = d.purpose;
+  $('#infoMore').textContent = d.more;
+  info.hidden = false;
+  if (CORE_PARTS.includes(part) && !partsFound.has(part)) {
+    partsFound.add(part);
+    const li = document.querySelector(`#partList [data-part="${part}"]`);
+    if (li) li.classList.add('done');
+    const fc = $('#foundCount');
+    if (fc) fc.textContent = String(partsFound.size);
+    if (partsFound.size === 5 && STEPS[stepIndex].extra === 'B1') caption('You found all five parts! Click Next.');
+  }
+}
+$('#infoClose').addEventListener('click', hideInfo);
+
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
+  downAt = null;
+  if (moved > 6) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects(pickables.filter(visibleInScene), true);
+  for (const h of hits) {
+    let o = h.object;
+    while (o && !o.userData.part) o = o.parent;
+    if (o && visibleInScene(o)) { selectPart(o.userData.part, o); return; }
+  }
+});
+
+/* =========================================================
+   Navigation
+   ========================================================= */
+let housingTarget = 0, bigLedTarget = 0, copWave = 0;
+function goTo(i, opt = {}) {
+  i = Math.max(0, Math.min(STEPS.length - 1, i));
+  token++;
+  const t = token;
+  tweens = [];
+  clearTemps();
+  hideInfo();
+  caption('');
+  const prev = STEPS[stepIndex];
+  stepIndex = i;
+  const s = STEPS[i];
+  const built = new Set(s.build || ALL_PARTS);
+  ALL_PARTS.forEach((id) => setPart(id, built.has(id)));
+  housingTarget = s.housing ? 0 : 4.5;
+  bigLedTarget = s.bigLed ? 1 : 0;
+  flowOn = !!s.flow;
+  showPinStates = !!s.pinStates;
+  codeOverride = null;
+  if (s.seq) {
+    if (!seq.running || opt.replay || !prev.seq) startSeq();
+    seq.manual = false;
+  } else {
+    seq.running = false; seq.manual = false;
+    setLights(-1);
+  }
+  updateNav();
+  renderExtra(s);
+  flyTo(s.cam, opt.instant);
+  copWave = 1.8;
+  $('#panelBody').scrollTop = 0;
+  if (s.play) s.play(t);
+}
+
+$('#prev').addEventListener('click', () => goTo(stepIndex - 1));
+$('#next').addEventListener('click', () => goTo(stepIndex + 1));
+$('#replay').addEventListener('click', () => goTo(stepIndex, { replay: true }));
+$('#resetView').addEventListener('click', () => flyTo(STEPS[stepIndex].cam));
+$('#labelsToggle').addEventListener('change', (e) => { showLabels = e.target.checked; });
+const pauseBtn = $('#pause');
+function setPaused(p) {
+  paused = p;
+  pauseBtn.setAttribute('aria-pressed', String(p));
+  pauseBtn.textContent = p ? '▶ Resume' : '❚❚ Pause';
+}
+pauseBtn.addEventListener('click', () => setPaused(!paused));
+const resetBtn = $('#resetLesson');
+let resetArmed = null;
+resetBtn.addEventListener('click', () => {
+  if (!resetArmed) {
+    resetBtn.classList.add('armed');
+    resetBtn.textContent = 'Click again to reset';
+    resetArmed = setTimeout(() => { resetArmed = null; resetBtn.classList.remove('armed'); resetBtn.textContent = 'Reset lesson'; }, 3000);
+    return;
+  }
+  clearTimeout(resetArmed); resetArmed = null;
+  resetBtn.classList.remove('armed'); resetBtn.textContent = 'Reset lesson';
+  resetLesson();
+});
+function resetLesson() {
+  greenDur = DEFAULT_GREEN;
+  const gm = codeCard.querySelector('#greenMs'); if (gm) gm.textContent = String(DEFAULT_GREEN * 1000);
+  partsFound.clear();
+  quiz = { choice: null, solved: false };
+  revealOpen = false;
+  setPaused(false);
+  showLabels = true; $('#labelsToggle').checked = true;
+  seq.running = false;
+  stepIndex = 0;
+  goTo(0, { replay: true });
+  updateCycle(true);
+}
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+  if (e.key === 'ArrowRight' && stepIndex < STEPS.length - 1) goTo(stepIndex + 1);
+  if (e.key === 'ArrowLeft' && stepIndex > 0) goTo(stepIndex - 1);
+});
+
+/* ---------- status chip + cycle bar ---------- */
+const stName = $('#stName'), stWord = $('#stWord'), stCount = $('#stCount'), stBadge = $('#stBadge');
+const lampEls = [...document.querySelectorAll('.lamps i')];
+const cycleEl = $('#cycle'), cycleSegs = [...document.querySelectorAll('#cycleTrack > div')], cycleMarker = $('#cycleMarker');
+let lastStatus = '';
+function updateCycle(force) {
+  const durs = [5, greenDur, 2];
+  if (force) {
+    cycleSegs.forEach((d, k) => {
+      d.style.flexGrow = String(durs[k]);
+      d.textContent = `${['Red', 'Green', 'Yellow'][k]} ${durs[k]} s`;
+    });
+    $('#cycleTotal').textContent = `${7 + greenDur} s`;
+  }
+}
+function updateStatus() {
+  const running = seq.running;
+  const ch = running ? CH[PHASES[seq.phase].ch] : null;
+  const secs = running ? Math.max(1, Math.ceil(seq.remaining - 1e-6)) : 0;
+  const key = `${running}|${seq.phase}|${secs}|${paused}|${seq.manual}`;
+  if (key !== lastStatus) {
+    lastStatus = key;
+    lampEls.forEach((l) => l.classList.toggle('on', !!ch && l.dataset.k === ch.key));
+    stName.textContent = ch ? ch.name.toUpperCase() : 'LIGHTS OFF';
+    stName.style.color = ch ? (ch.key === 'red' ? 'var(--red)' : ch.key === 'green' ? 'var(--green)' : 'var(--amber)') : 'var(--muted)';
+    stWord.textContent = ch ? ch.word : (STEPS[stepIndex].stage === 2 ? 'Building the circuit' : 'Program not running');
+    stCount.innerHTML = ch ? `${secs}<small>s</small>` : '';
+    stCount.hidden = !ch;
+    stBadge.hidden = !(paused || seq.manual);
+    stBadge.textContent = paused ? 'Paused' : 'Step-through';
+    cycleEl.hidden = !running;
+    cycleSegs.forEach((d, k) => d.classList.toggle('on', running && k === seq.phase));
+    document.querySelectorAll('#phaseList li').forEach((li) => li.classList.toggle('on', running && +li.dataset.phase === seq.phase));
+  }
+  if (running) {
+    const durs = [5, greenDur, 2], total = durs[0] + durs[1] + durs[2];
+    let el = 0; for (let k = 0; k < seq.phase; k++) el += durs[k];
+    el += durs[seq.phase] - Math.max(0, seq.remaining);
+    const track = cycleMarker.parentElement;
+    const gaps = 6;
+    cycleMarker.style.left = `calc(${(el / total) * 100}% - ${(el / total) * gaps}px + ${seq.phase * 3}px)`;
+    void track;
+  }
+}
+
+/* =========================================================
+   Main loop
+   ========================================================= */
+function resize() {
+  const r = $('#viewport').getBoundingClientRect();
+  const w = Math.max(1, r.width), h = Math.max(1, r.height);
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.fov = camera.aspect < 1 ? 52 : 40;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe($('#viewport'));
+resize();
+
+let last = performance.now();
+function frame(now) {
+  const rdt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  const dt = paused ? 0 : rdt;
+  updateTweens(dt);
+  updateCam(rdt);
+  updateSeq(dt);
+  updateFlow(dt);
+  // housing lifts off while we build; enlarged LED grows in for stage B
+  housing.position.y += (housingTarget - housing.position.y) * Math.min(1, rdt * 3.5);
+  housing.visible = housing.position.y < 4.3;
+  const s = bigLed.scale.x + (Math.max(0.001, bigLedTarget) - bigLed.scale.x) * Math.min(1, rdt * 4);
+  bigLed.scale.setScalar(s);
+  bigLed.visible = s > 0.02;
+  // Officer Ohm bobs and waves at each new step
+  const tt = now / 1000;
+  cop.position.y = -0.4 + Math.sin(tt * 2) * 0.03;
+  const armR = cop.userData.armR;
+  if (copWave > 0) { copWave -= rdt; armR.rotation.z = 2.5 + Math.sin(tt * 11) * 0.35; }
+  else armR.rotation.z += (0.15 - armR.rotation.z) * Math.min(1, rdt * 5);
+  for (const o of temps) if (o.userData.pulse) o.scale.setScalar(1 + 0.22 * Math.sin(tt * 6));
+  if (selHelper) selHelper.update();
+  controls.update();
+  renderer.render(scene, camera);
+  updateLabels();
+  updateStatus();
+  updateCodeHighlight();
+  requestAnimationFrame(frame);
+}
+
+updateCycle(true);
+goTo(0, { instant: true });
+housing.position.y = housingTarget;
+requestAnimationFrame(frame);
+
+// expose a tiny hook for automated checks
+window.__lesson = { goTo, get step() { return stepIndex; }, seq, setGreen, selectPart };
+})();
+</script>
+</body>
+</html>
