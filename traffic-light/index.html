@@ -572,13 +572,13 @@ const FAR_ROWS = ['a', 'b', 'c', 'd', 'e'], NEAR_ROWS = ['f', 'g', 'h', 'i', 'j'
 const NEG_RAIL_Z = 2.2, POS_RAIL_Z = 1.95;
 const RAIL_COLS = [];
 for (let c = 1; c <= 30; c++) if ((c - 1) % 6 !== 0) RAIL_COLS.push(c);
-const HEADER_Z = -3.85, HEADER_TOP = 0.6, SLEEVE = 0.27;
-const PIN_X = { D8: -0.8, D9: -0.55, D10: -0.3, GND: 0.7 };
+const HEADER_Z = -3.45, HEADER_TOP = -0.05, SLEEVE = 0.27;
+const PIN_X = { D25: 0, D26: 0.25, D27: 0.5, GND: 1.5 };
 
 const CH = [
-  { key: 'red', name: 'Red', word: 'Stop', pin: 'D8', num: 8, col: 7, hex: 0xff3030, wire: 0xe0413b },
-  { key: 'yellow', name: 'Yellow', word: 'Get ready to stop', pin: 'D9', num: 9, col: 15, hex: 0xffb400, wire: 0xf2c12e },
-  { key: 'green', name: 'Green', word: 'Go', pin: 'D10', num: 10, col: 23, hex: 0x1fd067, wire: 0x2fae5f },
+  { key: 'red', name: 'Red', word: 'Stop', pin: 'D25', num: 25, col: 7, hex: 0xff3030, wire: 0xe0413b },
+  { key: 'yellow', name: 'Yellow', word: 'Get ready to stop', pin: 'D26', num: 26, col: 15, hex: 0xffb400, wire: 0xf2c12e },
+  { key: 'green', name: 'Green', word: 'Go', pin: 'D27', num: 27, col: 23, hex: 0x1fd067, wire: 0x2fae5f },
 ];
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -705,76 +705,72 @@ function makeBreadboard() {
   return g;
 }
 
-/* ---------- controller board ---------- */
-function arduinoTexture(W, D, cx, cz) {
-  const S = 180;
+/* ---------- controller board: ESP32 DevKit (30-pin), pins pointing up ---------- */
+const ESP = { cx: -0.3, cz: -4.72, W: 5.1, D: 2.8, y: -0.2 };
+const NEAR_PINS = ['EN', 'VP', 'VN', 'D34', 'D35', 'D32', 'D33', 'D25', 'D26', 'D27', 'D14', 'D12', 'D13', 'GND', 'VIN'];
+const FAR_PINS = ['D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5', 'TX2', 'RX2', 'D4', 'D2', 'D15', 'GND', '3V3'];
+const FAR_HEADER_Z = HEADER_Z - 2.54;
+const pinColX = (k) => (k - 7) * P;
+function esp32Texture() {
+  const { cx, cz, W, D } = ESP;
+  const S = 200;
   const c = document.createElement('canvas');
   c.width = Math.round(W * S); c.height = Math.round(D * S);
   const g = c.getContext('2d');
   const U = (x) => (x - cx + W / 2) * S, Z = (z) => (z - cz + D / 2) * S;
-  g.fillStyle = '#10808d'; g.fillRect(0, 0, c.width, c.height);
-  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 3;
-  roundRect(g, 10, 10, c.width - 20, c.height - 20, 30); g.stroke();
-  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = `italic 800 ${0.9 * S}px Nunito, Arial, sans-serif`;
-  g.fillText('UNO', U(-1.6), Z(-6.0));
-  g.font = `800 ${0.2 * S}px Nunito, Arial, sans-serif`;
-  g.fillText('CONTROLLER BOARD', U(-1.6), Z(-5.35));
-  g.font = `800 ${0.17 * S}px Nunito, Arial, sans-serif`;
-  g.fillText('DIGITAL (PWM ~)', U(-1.1), Z(-4.62));
-  g.fillText('POWER', U(-0.2), Z(-8.05));
-  g.fillText('ANALOG IN', U(-2.27), Z(-8.05));
+  g.fillStyle = '#22408a'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#fff'; g.textBaseline = 'middle';
+  g.font = `800 ${0.1 * S}px Nunito, Arial, sans-serif`;
+  const vert = (t, x, z, align) => { g.save(); g.translate(U(x), Z(z)); g.rotate(-Math.PI / 2); g.textAlign = align; g.fillText(t, 0, 0); g.restore(); };
+  NEAR_PINS.forEach((t, k) => vert(t, pinColX(k), HEADER_Z - 0.2, 'left'));
+  FAR_PINS.forEach((t, k) => vert(t, pinColX(k), FAR_HEADER_Z + 0.2, 'right'));
+  g.textAlign = 'center';
+  g.font = `800 ${0.3 * S}px Nunito, Arial, sans-serif`;
+  g.fillText('ESP32', U(0.75), Z(cz - 0.12));
   g.font = `800 ${0.13 * S}px Nunito, Arial, sans-serif`;
-  for (let k = 0; k <= 7; k++) g.fillText(String(k), U(-2.95 + k * P), Z(-4.26));
-  for (let k = 0; k <= 5; k++) g.fillText(String(8 + k), U(-0.8 + k * P), Z(-4.26));
-  const vert = (t, x, z) => { g.save(); g.translate(U(x), Z(z)); g.rotate(-Math.PI / 2); g.textAlign = 'right'; g.fillText(t, 0, 0); g.restore(); };
-  vert('GND', 0.7, -4.17); vert('AREF', 0.95, -4.17); vert('SDA', 1.2, -4.17); vert('SCL', 1.45, -4.17);
-  // highlight the three pins we use
+  g.fillText('DEVKIT V1', U(0.75), Z(cz + 0.2));
+  g.fillText('EN', U(1.55), Z(HEADER_Z - 0.62));
+  g.fillText('BOOT', U(1.55), Z(FAR_HEADER_Z + 0.62));
+  // highlight the pins we use
   g.strokeStyle = '#F2B705'; g.lineWidth = 5;
-  roundRect(g, U(-0.8 - 0.13), Z(-4.4), 0.76 * S, 0.28 * S, 10); g.stroke();
+  roundRect(g, U(pinColX(7) - 0.14), Z(HEADER_Z - 0.75), 0.78 * S, 0.62 * S, 10); g.stroke();
+  roundRect(g, U(pinColX(13) - 0.14), Z(HEADER_Z - 0.75), 0.28 * S, 0.62 * S, 10); g.stroke();
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return tex;
 }
 
-function makeArduino() {
+function makeESP32() {
   const g = new THREE.Group();
-  const cx = 0, cz = -6.2, W = 6.9, D = 5.3, y = -0.21;
-  const board = mesh(new THREE.BoxGeometry(W, 0.08, D), mat(0x0d6f7a, { roughness: 0.55 }), cx, y, cz);
-  g.add(board);
-  const top = mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: arduinoTexture(W, D, cx, cz), roughness: 0.55 }), cx, y + 0.041, cz, false);
-  top.rotation.x = -Math.PI / 2;
-  g.add(top);
-  for (const [sx, sz] of [[-3.1, -3.9], [3.0, -3.9], [-3.1, -8.5], [3.0, -8.5]]) g.add(mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.17, 12), metal, sx, -0.32, sz));
-  const black = mat(0x1d2025, { roughness: 0.5 });
-  const hTop = HEADER_TOP, hBot = y + 0.04, hH = hTop - hBot;
-  const header = (x0, x1, z) => {
-    const b = mesh(new THREE.BoxGeometry(x1 - x0, hH, 0.26), black, (x0 + x1) / 2, hBot + hH / 2, z);
-    g.add(b);
-  };
-  header(-3.1, -1.05, HEADER_Z); header(-0.95, 1.6, HEADER_Z);
-  header(-2.98, -1.56, -8.55); header(-1.15, 0.9, -8.55);
-  // header sockets
-  const sock = new THREE.BoxGeometry(0.1, 0.01, 0.1);
-  const sockMat = mat(0x050607, { roughness: 1 });
-  const addSock = (x, z) => g.add(mesh(sock, sockMat, x, hTop + 0.004, z, false));
-  for (let k = 0; k <= 7; k++) addSock(-2.95 + k * P, HEADER_Z);
-  for (let k = 0; k <= 9; k++) addSock(-0.8 + k * P, HEADER_Z);
-  for (let k = 0; k < 6; k++) addSock(-2.9 + k * P, -8.55);
-  for (let k = 0; k < 8; k++) addSock(-1.05 + k * P, -8.55);
-  // USB port, power jack, chip, small parts
-  g.add(mesh(new THREE.BoxGeometry(1.6, 1.05, 1.2), metal, 3.15, y + 0.56, -4.75));
-  g.add(mesh(new THREE.BoxGeometry(1.4, 1.0, 0.9), black, 3.2, y + 0.54, -7.7));
-  g.add(mesh(new THREE.BoxGeometry(3.5, 0.14, 0.75), black, -0.4, y + 0.11, -6.9));
-  for (let k = 0; k < 14; k++) {
-    g.add(mesh(new THREE.BoxGeometry(0.06, 0.1, 0.12), metal, -2.0 + k * 0.245, y + 0.06, -6.47, false));
-    g.add(mesh(new THREE.BoxGeometry(0.06, 0.1, 0.12), metal, -2.0 + k * 0.245, y + 0.06, -7.33, false));
+  const { cx, cz, W, D, y } = ESP;
+  const top = y + 0.03;
+  g.add(mesh(new THREE.BoxGeometry(W, 0.06, D), mat(0x1c3474, { roughness: 0.55 }), cx, y, cz));
+  const face = mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: esp32Texture(), roughness: 0.55 }), cx, top + 0.001, cz, false);
+  face.rotation.x = -Math.PI / 2;
+  g.add(face);
+  const dark = mat(0x1d2025, { roughness: 0.5 });
+  for (const [fx, fz] of [[-2.6, -3.55], [1.95, -3.55], [-2.6, -5.9], [1.95, -5.9]]) g.add(mesh(new THREE.CylinderGeometry(0.13, 0.13, top - 0.06 + 0.4, 12), dark, fx, (-0.4 + y) / 2, fz));
+  // header strips with pins pointing up (female jumper ends slide onto them)
+  const gold = mat(0xd9b44a, { metalness: 0.4, roughness: 0.35 });
+  const pinGeo = new THREE.BoxGeometry(0.05, 0.3, 0.05);
+  for (const z of [HEADER_Z, FAR_HEADER_Z]) {
+    g.add(mesh(new THREE.BoxGeometry(15 * P, 0.1, 0.24), dark, 0, top + 0.05, z));
+    for (let k = 0; k < 15; k++) g.add(mesh(pinGeo, gold, pinColX(k), top + 0.2, z, false));
   }
-  g.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 16), mat(0xe8e8e8, { metalness: 0.5, roughness: 0.3 }), -3.0, y + 0.1, -5.0));
-  g.add(mesh(new THREE.BoxGeometry(0.5, 0.12, 0.5), mat(0xb3b8bd), -3.0, y + 0.07, -5.0));
-  g.add(mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.6, 16), mat(0x2b2f36), 1.9, y + 0.34, -7.9));
-  g.add(mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.6, 16), mat(0x2b2f36), 1.25, y + 0.34, -7.9));
-  g.add(mesh(new THREE.BoxGeometry(0.6, 0.12, 0.25), metal, 1.6, y + 0.1, -5.6));
+  // ESP-WROOM-32 module: antenna end, metal shield
+  g.add(mesh(new THREE.BoxGeometry(2.5, 0.05, 1.8), dark, -1.6, top + 0.025, cz));
+  g.add(mesh(new THREE.BoxGeometry(1.6, 0.14, 1.6), mat(0xd3d7dc, { metalness: 0.45, roughness: 0.3 }), -1.2, top + 0.12, cz));
+  const ant = mat(0xc9a227, { metalness: 0.4, roughness: 0.4 });
+  for (let k = 0; k < 4; k++) g.add(mesh(new THREE.BoxGeometry(0.05, 0.01, 1.4), ant, -2.75 + k * 0.17, top + 0.056, cz, false));
+  // micro-USB, buttons, chips, power LED
+  g.add(mesh(new THREE.BoxGeometry(0.55, 0.22, 0.62), mat(0xd3d7dc, { metalness: 0.45, roughness: 0.3 }), 2.2, top + 0.11, cz));
+  for (const z of [HEADER_Z - 0.85, FAR_HEADER_Z + 0.85]) {
+    g.add(mesh(new THREE.BoxGeometry(0.4, 0.1, 0.3), mat(0xd3d7dc, { metalness: 0.4, roughness: 0.3 }), 1.55, top + 0.05, z));
+    g.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12), dark, 1.55, top + 0.13, z));
+  }
+  g.add(mesh(new THREE.BoxGeometry(0.42, 0.08, 0.42), dark, 0.75, top + 0.04, cz + 0.62));
+  g.add(mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), dark, 0.75, top + 0.06, cz - 0.62));
+  g.add(mesh(new THREE.BoxGeometry(0.08, 0.04, 0.05), mat(0xff4040, { emissive: 0xff2020, emissiveIntensity: 0.6 }), 1.95, top + 0.02, cz + 0.4, false));
   tagPart(g, 'controller');
   return g;
 }
@@ -939,8 +935,8 @@ function makeBigLED() {
    ========================================================= */
 const breadboard = makeBreadboard();
 scene.add(breadboard);
-const arduino = makeArduino();
-scene.add(arduino);
+const esp32 = makeESP32();
+scene.add(esp32);
 
 const leds = [], resistors = [], pinWires = [], cathodeWires = [];
 CH.forEach((ch, i) => {
@@ -968,7 +964,7 @@ CH.forEach((ch, i) => {
   scene.add(k.group); cathodeWires.push(k);
 });
 const gA = pinAt('GND', HEADER_TOP + SLEEVE), gB = railAt(30, SLEEVE);
-const gndWire = makeWire([gA, V(0.75, 1.45, -3.62), V(2.9, 1.9, -2.9), V(4.6, 1.5, -0.6), V(4.45, 1.05, 1.5), V(gB.x, 0.72, gB.z), gB], 0x2b2b2e);
+const gndWire = makeWire([gA, V(1.55, 0.85, -3.3), V(3.3, 1.5, -2.6), V(4.6, 1.35, -0.6), V(4.45, 1.0, 1.5), V(gB.x, 0.72, gB.z), gB], 0x2b2b2e);
 scene.add(gndWire.group);
 
 const cop = makeCop();
@@ -1015,14 +1011,14 @@ function setLights(idx) {
 /* ---------- current flow dots ---------- */
 function buildFlowPath(i) {
   const ch = CH[i], x = colX(ch.col), xc = colX(ch.col + 1);
-  const pts = [pinAt(ch.pin, 0.6)];
+  const pts = [pinAt(ch.pin)];
   pts.push(...pinWires[i].curve.getPoints(50));
   pts.push(V(x, 0.03, ROWZ.b), V(x, 0.03, ROWZ.d), V(x, 0.3, ROWZ.d), V(x, 0.3, ROWZ.g), V(x, 0.03, ROWZ.g),
     V(x, 0.03, ROWZ.i), V(x, 0.45, ROWZ.i), V(x + P / 2, 0.72, ROWZ.i), V(xc, 0.45, ROWZ.i), V(xc, 0.03, ROWZ.i), V(xc, 0.03, ROWZ.j));
   pts.push(...cathodeWires[i].curve.getPoints(16));
   pts.push(V(xc, 0.03, NEG_RAIL_Z), V(colX(30), 0.03, NEG_RAIL_Z));
   pts.push(...gndWire.curve.getPoints(60).reverse());
-  pts.push(pinAt('GND', 0.6));
+  pts.push(pinAt('GND'));
   const cum = [0];
   for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + pts[k].distanceTo(pts[k - 1]));
   return { pts, cum, len: cum[cum.length - 1] };
@@ -1104,13 +1100,13 @@ CH.forEach((ch, i) => {
     { obj: leds[i], cls: 'lamp ' + ch.key, lift: 58, update: (L) => L.el.classList.toggle('on', litIndex === i) });
   addLabel('330 Ω', V(colX(ch.col) - 0.05, 0.42, -0.15), { obj: resistors[i], lift: 8 });
 });
-addLabel('Controller (Uno)', V(-2.6, -0.1, -7.4), { obj: arduino, lift: 6 });
+addLabel('ESP32 DevKit (controller)', V(-1.2, 0.02, -4.72), { obj: esp32, lift: 6 });
 addLabel('Breadboard', V(-3.9, 0.02, 2.55), { obj: breadboard, lift: 6 });
 addLabel('Ground rail (−)', V(colX(3), 0.02, NEG_RAIL_Z), { obj: breadboard, lift: 34 });
 addLabel('Jumper wire', () => gndWire.curve.getPoint(0.45), { obj: gndWire.group, lift: 12 });
 addLabel('Officer Ohm', V(-6.6, 2.7, 1.4), { obj: cop, lift: 8 });
-const pinLabels = ['D8', 'D9', 'D10', 'GND'].map((n, i) => addLabel(n, pinAt(n, HEADER_TOP + 0.05), {
-  obj: arduino, cls: 'pin', lift: [14, 40, 66, 14][i],
+const pinLabels = ['D25', 'D26', 'D27', 'GND'].map((n, i) => addLabel(n, pinAt(n, HEADER_TOP + 0.05), {
+  obj: esp32, cls: 'pin', lift: [14, 40, 66, 14][i],
   update: (L) => {
     if (n === 'GND') return;
     const high = showPinStates && litIndex === i;
@@ -1219,7 +1215,7 @@ const CAM = {
   cathodes: { p: [0.2, 6.6, 9.0], t: [0, 0.2, 1.1] },
   gnd: { p: [8.6, 7.6, 6.2], t: [1.8, 0.3, -1.4] },
   loop: { p: [2.6, 10.2, 10.4], t: [0.4, 0, -1.9] },
-  setup: { p: [-0.2, 6.4, 3.4], t: [-0.3, 0, -4.8] },
+  setup: { p: [0.3, 6.6, 0.4], t: [0.3, 0, -4.4] },
   code: { p: [1.0, 8.2, 10.8], t: [0.2, 0.3, -2.2] },
 };
 let camTw = null;
@@ -1278,59 +1274,55 @@ function stepPhase() {
    Code panel
    ========================================================= */
 const CODE = [
-  ['// My First Traffic Light', ''],
-  ['const int RED = 8;', 'pins'],
-  ['const int YELLOW = 9;', 'pins'],
-  ['const int GREEN = 10;', 'pins'],
+  ['# My First Traffic Light (ESP32)', ''],
+  ['from machine import Pin', 'imp'],
+  ['import time', 'imp'],
   ['', ''],
-  ['void setup() {', 'setup'],
-  ['  pinMode(RED, OUTPUT);', 'setup'],
-  ['  pinMode(YELLOW, OUTPUT);', 'setup'],
-  ['  pinMode(GREEN, OUTPUT);', 'setup'],
-  ['}', 'setup'],
+  ['red = Pin(25, Pin.OUT)', 'pins'],
+  ['yellow = Pin(26, Pin.OUT)', 'pins'],
+  ['green = Pin(27, Pin.OUT)', 'pins'],
   ['', ''],
-  ['void loop() {', ''],
-  ['  // Red light: stop', 'p0'],
-  ['  digitalWrite(RED, HIGH);', 'p0', 'key'],
-  ['  digitalWrite(YELLOW, LOW);', 'p0'],
-  ['  digitalWrite(GREEN, LOW);', 'p0'],
-  ['  delay(5000);', 'p0', 'delay'],
+  ['while True:', ''],
+  ['    # Red light: stop', 'p0'],
+  ['    red.value(1)', 'p0', 'key'],
+  ['    yellow.value(0)', 'p0'],
+  ['    green.value(0)', 'p0'],
+  ['    time.sleep(5)', 'p0', 'delay'],
   ['', ''],
-  ['  // Green light: go', 'p1'],
-  ['  digitalWrite(RED, LOW);', 'p1'],
-  ['  digitalWrite(YELLOW, LOW);', 'p1'],
-  ['  digitalWrite(GREEN, HIGH);', 'p1', 'key'],
-  ['  delay(GREEN_MS);', 'p1', 'delay'],
+  ['    # Green light: go', 'p1'],
+  ['    red.value(0)', 'p1'],
+  ['    yellow.value(0)', 'p1'],
+  ['    green.value(1)', 'p1', 'key'],
+  ['    time.sleep(GREEN_S)', 'p1', 'delay'],
   ['', ''],
-  ['  // Yellow light: get ready to stop', 'p2'],
-  ['  digitalWrite(RED, LOW);', 'p2'],
-  ['  digitalWrite(YELLOW, HIGH);', 'p2', 'key'],
-  ['  digitalWrite(GREEN, LOW);', 'p2'],
-  ['  delay(2000);', 'p2', 'delay'],
-  ['}', ''],
+  ['    # Yellow light: get ready to stop', 'p2'],
+  ['    red.value(0)', 'p2'],
+  ['    yellow.value(1)', 'p2', 'key'],
+  ['    green.value(0)', 'p2'],
+  ['    time.sleep(2)', 'p2', 'delay'],
 ];
 function highlightCode(src) {
   const esc = src.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  return esc.replace(/(\/\/.*$)|\b(void|const|int)\b|\b(pinMode|digitalWrite|delay)\b|\b(HIGH|LOW|OUTPUT)\b|\b(GREEN_MS)\b|\b(\d+)\b/g,
+  return esc.replace(/(#.*$)|\b(from|import|while|True)\b|\b(Pin|value|sleep)\b|\b(OUT)\b|\b(GREEN_S)\b|\b(\d+)\b/g,
     (m, c, kw, fn, k2, gm, num) => {
       if (c) return `<span class="c">${c}</span>`;
       if (kw) return `<span class="kw">${kw}</span>`;
       if (fn) return `<span class="fn">${fn}</span>`;
       if (k2) return `<span class="k2">${k2}</span>`;
-      if (gm) return `<span class="num" id="greenMs">${greenDur * 1000}</span>`;
+      if (gm) return `<span class="num" id="greenMs">${greenDur}</span>`;
       return `<span class="num">${num}</span>`;
     });
 }
 const codeCard = document.createElement('div');
 codeCard.className = 'code-card';
 codeCard.innerHTML = `
-  <div class="code-head"><span>traffic_light.ino</span>
+  <div class="code-head"><span>main.py</span>
     <div class="code-btns" id="stepper">
       <button type="button" id="stepBtn">Step through ▸|</button>
       <button type="button" id="autoBtn" class="on">Auto play</button>
     </div>
   </div>
-  <pre class="code" id="codePre" aria-label="Arduino program"></pre>
+  <pre class="code" id="codePre" aria-label="MicroPython program"></pre>
   <p class="code-note" id="codeNote"></p>`;
 const codePre = codeCard.querySelector('#codePre');
 const lineEls = CODE.map(([src, block, role], n) => {
@@ -1392,14 +1384,14 @@ function updateCodeHighlight() {
   }
   if (!codeOverride && seq.running) {
     const ch = CH[PHASES[seq.phase].ch];
-    setCodeNote(`Now: <b>${ch.name.toUpperCase()}</b> pin ${ch.num} is HIGH (on). The other two are LOW (off).`);
+    setCodeNote(`Now: <b>${ch.name.toUpperCase()}</b> pin ${ch.num} is set to 1 (HIGH, on). The other two are 0 (LOW, off).`);
   }
 }
 function setGreen(sec) {
   greenDur = sec;
   const el = codeCard.querySelector('#greenMs');
   if (el) {
-    el.textContent = String(sec * 1000);
+    el.textContent = String(sec);
     el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
     clearTimeout(setGreen._t); setGreen._t = setTimeout(() => el.classList.remove('flash'), 700);
   }
@@ -1421,11 +1413,11 @@ const STAGES = [
 const chain = (...is) => is.flatMap((i) => ['res' + i, 'led' + i, 'w' + i]);
 const T = (w, def) => `<span class="term" title="${def}">${w}</span>`;
 const PLAN = [
-  'D8 → 330 Ω resistor → red LED anode',
-  'D9 → 330 Ω resistor → yellow LED anode',
-  'D10 → 330 Ω resistor → green LED anode',
+  'D25 → 330 Ω resistor → red LED anode',
+  'D26 → 330 Ω resistor → yellow LED anode',
+  'D27 → 330 Ω resistor → green LED anode',
   'All three LED cathodes → ground rail',
-  'Ground rail → controller GND',
+  'Ground rail → ESP32 GND',
 ];
 
 const STEPS = [
@@ -1437,22 +1429,22 @@ const STEPS = [
     text: `An LED is a light that lets electricity flow in only one direction, so its two legs are different. The longer leg of a new, untrimmed LED is usually the ${T('anode', 'the + leg, where current goes in')} (+), and the flat edge on the rim marks the ${T('cathode', 'the − leg, where current comes out')} (−).` },
   { stage: 2, title: 'How a breadboard connects', cam: 'board', build: [], extra: 'C1', play: playC1,
     text: 'Under the plastic, metal clips join some holes together. The 5 holes in each short row are connected, and the long ground rail is connected all the way along.' },
-  { stage: 2, title: 'Red: D8 → resistor → LED', cam: 'red', build: [], plan: 0, play: (t) => buildChain(0, t),
-    text: 'A wire joins pin D8 to row 7, and a 330 Ω resistor carries the signal across the middle gap to the red LED’s long leg (anode). The short leg (cathode) goes in row 8, a separate row.' },
-  { stage: 2, title: 'Yellow: D9 → resistor → LED', cam: 'yellow', build: chain(0), plan: 1, play: (t) => buildChain(1, t),
-    text: 'Same pattern: pin D9 goes to row 15, through its own 330 Ω resistor, to the yellow LED’s anode. Every LED gets its own resistor.' },
-  { stage: 2, title: 'Green: D10 → resistor → LED', cam: 'green', build: chain(0, 1), plan: 2, play: (t) => buildChain(2, t),
-    text: 'Pin D10 goes to row 23, through a third 330 Ω resistor, to the green LED’s anode. Its cathode sits in row 24.' },
+  { stage: 2, title: 'Red: D25 → resistor → LED', cam: 'red', build: [], plan: 0, play: (t) => buildChain(0, t),
+    text: 'A wire joins pin D25 to row 7, and a 330 Ω resistor carries the signal across the middle gap to the red LED’s long leg (anode). The short leg (cathode) goes in row 8, a separate row.' },
+  { stage: 2, title: 'Yellow: D26 → resistor → LED', cam: 'yellow', build: chain(0), plan: 1, play: (t) => buildChain(1, t),
+    text: 'Same pattern: pin D26 goes to row 15, through its own 330 Ω resistor, to the yellow LED’s anode. Every LED gets its own resistor.' },
+  { stage: 2, title: 'Green: D27 → resistor → LED', cam: 'green', build: chain(0, 1), plan: 2, play: (t) => buildChain(2, t),
+    text: 'Pin D27 goes to row 23, through a third 330 Ω resistor, to the green LED’s anode. Its cathode sits in row 24.' },
   { stage: 2, title: 'Cathodes to the ground rail', cam: 'cathodes', build: chain(0, 1, 2), plan: 3, play: playC5,
     text: `Short black wires join each LED’s cathode row to the ground rail (−). ${T('Ground', 'the shared return path back to the controller')} is the path electricity uses to get back to the controller.` },
   { stage: 2, title: 'Ground rail to GND', cam: 'gnd', build: chain(0, 1, 2).concat(['k0', 'k1', 'k2']), plan: 4, play: playC6,
-    text: 'One more black wire joins the ground rail to the controller’s GND pin. Now each light has a complete loop.' },
+    text: 'One more black wire joins the ground rail to the ESP32’s GND pin. Now each light has a complete loop.' },
   { stage: 2, title: 'The loop is complete', cam: 'loop', seq: true, flow: true, plan: 5, extra: 'C7',
     text: `Electricity flows out of a pin, through the resistor and the LED, and back to GND. A complete loop like this is called a ${T('circuit', 'a complete loop that electricity can flow around')}.` },
-  { stage: 3, title: 'setup(): get the pins ready', cam: 'setup', code: true, pinStates: true, play: playD1,
-    text: `setup() runs once when the controller starts. pinMode(…, OUTPUT) makes pins 8, 9 and 10 ${T('outputs', 'pins that send electricity out')}, so they can send electricity out to the lights.` },
-  { stage: 3, title: 'loop(): the code runs the lights', cam: 'code', seq: true, code: true, stepper: true, pinStates: true,
-    text: 'HIGH turns this output on. LOW turns it off. The delay tells the program how long to wait.' },
+  { stage: 3, title: 'Get the pins ready', cam: 'setup', code: true, pinStates: true, play: playD1,
+    text: `This MicroPython program runs on the ESP32. The first lines run once: Pin(25, Pin.OUT) makes pin 25 an ${T('output', 'a pin that sends electricity out')}, so it can send electricity out to a light, and pins 26 and 27 are set up the same way.` },
+  { stage: 3, title: 'while True: the code runs the lights', cam: 'code', seq: true, code: true, stepper: true, pinStates: true,
+    text: 'while True: repeats its lines forever. value(1) means HIGH and turns this output on; value(0) means LOW and turns it off. time.sleep() tells the program how many seconds to wait.' },
   { stage: 4, title: 'Experiment: a longer green light', cam: 'hero', seq: true, code: true, stepper: true, extra: 'E1', pinStates: true,
     text: 'Drag the slider to change how long the green light stays on, from 2 to 10 seconds. The light, the countdown and the code all change together.' },
   { stage: 4, title: 'Quick quiz', cam: 'hero', seq: true, extra: 'E2',
@@ -1465,11 +1457,11 @@ let quiz = { choice: null, solved: false };
 let revealOpen = false;
 
 const PART_INFO = {
-  controller: { name: 'Controller (Uno-style board)', purpose: 'Follows our instructions and controls the lights.', more: 'We load a program onto it. The program switches pins D8, D9 and D10 on and off.' },
+  controller: { name: 'ESP32 DevKit (controller)', purpose: 'Follows our instructions and controls the lights.', more: 'We load a MicroPython program onto it. The program switches pins 25, 26 and 27 on and off, using 3.3 volts.' },
   led: { name: 'LED', purpose: 'A small light that lets electricity flow in one direction.', more: 'LED stands for light-emitting diode. Its long leg (anode, +) must face the pin, and its short leg (cathode, −) faces ground.' },
   resistor: { name: '330 Ω resistor', purpose: 'Limits the current to help protect the LED.', more: 'Current means how much electricity is flowing. Ω (ohm) is the unit for resistance; the bands orange, orange, brown mean 330.' },
   breadboard: { name: 'Breadboard', purpose: 'Holds connections so we can build without soldering.', more: 'Soldering means joining metal with melted metal. On a breadboard you just push parts into the holes.' },
-  wire: { name: 'Jumper wire', purpose: 'Connects one part of the circuit to another.', more: 'Each end has a metal pin that pushes into a hole on the board or the controller.' },
+  wire: { name: 'Jumper wire', purpose: 'Connects one part of the circuit to another.', more: 'One end slides onto an ESP32 pin. The other end has a metal pin that pushes into a breadboard hole.' },
   cop: { name: 'Officer Ohm', purpose: 'Your guide for this lesson.', more: 'Officer Ohm is named after the ohm (Ω), the unit we use to measure resistors.' },
 };
 const CORE_PARTS = ['controller', 'led', 'resistor', 'breadboard', 'wire'];
@@ -1574,21 +1566,21 @@ async function playC6(t) {
   fadeOut(r, 0.8, t);
 }
 async function playD1(t) {
-  codeOverride = { block: 'pins' };
-  setCodeNote('<b>const int RED = 8;</b> gives pin 8 a friendly name, so the code is easier to read.');
-  const rings = ['D8', 'D9', 'D10'].map((n) => ring(pinAt(n, HEADER_TOP)));
+  codeOverride = { block: 'imp' };
+  setCodeNote('<b>from machine import Pin</b> brings in the tools for controlling pins. <b>import time</b> lets the program wait.');
+  const rings = ['D25', 'D26', 'D27'].map((n) => ring(pinAt(n, HEADER_TOP)));
   await wait(3.2, t); if (t !== token) return;
-  const lines = [6, 7, 8];
   for (let k = 0; k < 3; k++) {
-    codeOverride = { line: lines[k] };
-    setCodeNote(`<b>pinMode(${['RED', 'YELLOW', 'GREEN'][k]}, OUTPUT)</b> makes pin ${CH[k].num} an output.`);
+    const name = CH[k].key;
+    codeOverride = { line: 4 + k };
+    setCodeNote(`<b>${name} = Pin(${CH[k].num}, Pin.OUT)</b> makes pin ${CH[k].num} an output and names it <b>${name}</b>.`);
     rings.forEach((r, j) => { r.visible = j === k; });
     callout(`${CH[k].pin}: OUTPUT`, pinAt(CH[k].pin, HEADER_TOP + 0.05), 'gold', [16, 46, 76][k]);
     await wait(2.0, t); if (t !== token) return;
   }
   rings.forEach((r) => { r.visible = true; });
-  codeOverride = { block: 'setup' };
-  setCodeNote('setup() is finished. All lights start off (LOW) until loop() begins. Click <b>Next</b>.');
+  codeOverride = { block: 'pins' };
+  setCodeNote('The pins are ready. All lights start off (0, LOW) until <b>while True:</b> begins. Click <b>Next</b>.');
 }
 
 /* ---------- panel rendering ---------- */
@@ -1649,7 +1641,7 @@ function renderExtra(s) {
       <hr style="border:0;border-top:1px solid var(--line);margin:12px 0">
       <p class="question">What changes when the green light stays on longer?</p>
       <button class="btn" id="revealBtn" type="button" aria-expanded="${revealOpen}">${revealOpen ? 'Hide the answer' : 'Think first, then show the answer'}</button>
-      <div class="reveal" id="revealBox" ${revealOpen ? '' : 'hidden'}>Cars get more time to go, and one full cycle takes longer. Red (5 s) and yellow (2 s) stay the same. Only one number in the code changed: the green delay.</div>
+      <div class="reveal" id="revealBox" ${revealOpen ? '' : 'hidden'}>Cars get more time to go, and one full cycle takes longer. Red (5 s) and yellow (2 s) stay the same. Only one number in the code changed: the one inside the green time.sleep().</div>
     </div>`);
     const range = card.querySelector('#greenRange');
     range.addEventListener('input', () => { setGreen(+range.value); updateSumLine(); });
@@ -1861,7 +1853,7 @@ resetBtn.addEventListener('click', () => {
 });
 function resetLesson() {
   greenDur = DEFAULT_GREEN;
-  const gm = codeCard.querySelector('#greenMs'); if (gm) gm.textContent = String(DEFAULT_GREEN * 1000);
+  const gm = codeCard.querySelector('#greenMs'); if (gm) gm.textContent = String(DEFAULT_GREEN);
   partsFound.clear();
   quiz = { choice: null, solved: false };
   revealOpen = false;
