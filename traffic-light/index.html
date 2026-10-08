@@ -705,72 +705,155 @@ function makeBreadboard() {
   return g;
 }
 
-/* ---------- controller board: ESP32 DevKit (30-pin), pins pointing up ---------- */
-const ESP = { cx: -0.3, cz: -4.72, W: 5.1, D: 2.8, y: -0.2 };
+/* ---------- controller board: ESP32 DevKit V1 (30-pin), pins pointing up ----------
+   Laid out from a top view of the real board: antenna end on the left, micro-USB on the right,
+   the EN…VIN pin row nearest the breadboard and the D23…3V3 row at the back. Rows are 0.9" apart. */
 const NEAR_PINS = ['EN', 'VP', 'VN', 'D34', 'D35', 'D32', 'D33', 'D25', 'D26', 'D27', 'D14', 'D12', 'D13', 'GND', 'VIN'];
 const FAR_PINS = ['D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5', 'TX2', 'RX2', 'D4', 'D2', 'D15', 'GND', '3V3'];
-const FAR_HEADER_Z = HEADER_Z - 2.54;
+const FAR_HEADER_Z = HEADER_Z - 0.9 * 2.54;
 const pinColX = (k) => (k - 7) * P;
-function esp32Texture() {
-  const { cx, cz, W, D } = ESP;
-  const S = 200;
+const ESP = { x0: pinColX(0) - 0.48, x1: pinColX(14) + 0.65, z0: FAR_HEADER_Z - 0.1, z1: HEADER_Z + 0.1, y: -0.2 };
+ESP.cx = (ESP.x0 + ESP.x1) / 2; ESP.cz = (ESP.z0 + ESP.z1) / 2;
+ESP.W = ESP.x1 - ESP.x0; ESP.D = ESP.z1 - ESP.z0;
+
+function canvasFor(w, d, S) {
   const c = document.createElement('canvas');
-  c.width = Math.round(W * S); c.height = Math.round(D * S);
-  const g = c.getContext('2d');
-  const U = (x) => (x - cx + W / 2) * S, Z = (z) => (z - cz + D / 2) * S;
-  g.fillStyle = '#22408a'; g.fillRect(0, 0, c.width, c.height);
-  g.fillStyle = '#fff'; g.textBaseline = 'middle';
-  g.font = `800 ${0.1 * S}px Nunito, Arial, sans-serif`;
-  const vert = (t, x, z, align) => { g.save(); g.translate(U(x), Z(z)); g.rotate(-Math.PI / 2); g.textAlign = align; g.fillText(t, 0, 0); g.restore(); };
-  NEAR_PINS.forEach((t, k) => vert(t, pinColX(k), HEADER_Z - 0.2, 'left'));
-  FAR_PINS.forEach((t, k) => vert(t, pinColX(k), FAR_HEADER_Z + 0.2, 'right'));
-  g.textAlign = 'center';
-  g.font = `800 ${0.3 * S}px Nunito, Arial, sans-serif`;
-  g.fillText('ESP32', U(0.75), Z(cz - 0.12));
-  g.font = `800 ${0.13 * S}px Nunito, Arial, sans-serif`;
-  g.fillText('DEVKIT V1', U(0.75), Z(cz + 0.2));
-  g.fillText('EN', U(1.55), Z(HEADER_Z - 0.62));
-  g.fillText('BOOT', U(1.55), Z(FAR_HEADER_Z + 0.62));
-  // highlight the pins we use
-  g.strokeStyle = '#F2B705'; g.lineWidth = 5;
-  roundRect(g, U(pinColX(7) - 0.14), Z(HEADER_Z - 0.75), 0.78 * S, 0.62 * S, 10); g.stroke();
-  roundRect(g, U(pinColX(13) - 0.14), Z(HEADER_Z - 0.75), 0.28 * S, 0.62 * S, 10); g.stroke();
+  c.width = Math.round(w * S); c.height = Math.round(d * S);
+  return [c, c.getContext('2d')];
+}
+function texFrom(c) {
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return tex;
+}
+function esp32Texture() {
+  const { cx, cz, W, D } = ESP;
+  const S = 220;
+  const [c, g] = canvasFor(W, D, S);
+  const U = (x) => (x - cx + W / 2) * S, Z = (z) => (z - cz + D / 2) * S;
+  g.fillStyle = '#4a4b4f'; g.fillRect(0, 0, c.width, c.height);
+  // mounting holes
+  g.fillStyle = '#f3f7fa';
+  for (const x of [ESP.x0 + 0.2, ESP.x1 - 0.2]) for (const z of [cz - 1.02, cz + 1.02]) { g.beginPath(); g.arc(U(x), Z(z), 0.12 * S, 0, Math.PI * 2); g.fill(); }
+  // through-hole pads (square for VIN and 3V3)
+  for (const z of [HEADER_Z, FAR_HEADER_Z]) for (let k = 0; k < 15; k++) {
+    const x = pinColX(k);
+    g.fillStyle = '#c9ccd1'; g.strokeStyle = '#8d9096'; g.lineWidth = 3;
+    if (k === 14) { g.fillRect(U(x) - 0.09 * S, Z(z) - 0.09 * S, 0.18 * S, 0.18 * S); }
+    else { g.beginPath(); g.arc(U(x), Z(z), 0.095 * S, 0, Math.PI * 2); g.fill(); g.stroke(); }
+  }
+  // silkscreen pin names
+  g.fillStyle = '#ffffff'; g.textBaseline = 'middle';
+  g.font = `800 ${0.11 * S}px Nunito, Arial, sans-serif`;
+  const vert = (t, x, z, align) => { g.save(); g.translate(U(x), Z(z)); g.rotate(-Math.PI / 2); g.textAlign = align; g.fillText(t, 0, 0); g.restore(); };
+  NEAR_PINS.forEach((t, k) => vert(t, pinColX(k), HEADER_Z - 0.14, 'left'));
+  FAR_PINS.forEach((t, k) => vert(t, pinColX(k), FAR_HEADER_Z + 0.14, 'right'));
+  vert('EN', ESP.x1 - 0.42, cz + 0.4, 'center');
+  vert('BOOT', ESP.x1 - 0.42, cz - 0.42, 'center');
+  // small surface-mount parts
+  const smd = (x, z, w, d, body) => {
+    g.fillStyle = '#d9dbde'; g.fillRect(U(x - w / 2), Z(z - d / 2), w * S, d * S);
+    g.fillStyle = body; g.fillRect(U(x - w / 2) + 0.03 * S, Z(z - d / 2) + 0.03 * S, (w - 0.06) * S, (d - 0.06) * S);
+  };
+  for (let k = 0; k < 5; k++) smd(0.42, cz + 0.15 - k * 0.15, 0.2, 0.1, '#111');
+  smd(0.32, cz + 0.65, 0.1, 0.2, '#c9a27a'); smd(0.45, cz + 0.65, 0.1, 0.2, '#c9a27a');
+  smd(0.32, cz - 0.68, 0.1, 0.2, '#111'); smd(0.45, cz - 0.68, 0.1, 0.2, '#111');
+  for (const z of [cz + 0.62, cz + 0.32, cz - 0.05]) smd(ESP.x1 - 0.85, z, 0.1, 0.2, '#111');
+  smd(ESP.x1 - 0.85, cz + 0.02, 0.1, 0.2, '#c9a27a');
+  for (const z of [cz - 0.4, cz - 0.7]) smd(ESP.x1 - 0.85, z, 0.1, 0.2, '#111');
+  smd(0.72, cz - 0.7, 0.18, 0.1, '#111');
+  // highlight the pins this lesson uses
+  g.strokeStyle = '#F2B705'; g.lineWidth = 6;
+  roundRect(g, U(pinColX(7) - 0.15), Z(HEADER_Z - 0.62), 0.8 * S, 0.76 * S, 12); g.stroke();
+  roundRect(g, U(pinColX(13) - 0.15), Z(HEADER_Z - 0.62), 0.3 * S, 0.76 * S, 12); g.stroke();
+  return texFrom(c);
+}
+function moduleTexture(w, d) {
+  const S = 220;
+  const [c, g] = canvasFor(w, d, S);
+  g.fillStyle = '#1b1b1c'; g.fillRect(0, 0, c.width, c.height);
+  // castellated pads along both long sides and the inner end
+  g.fillStyle = '#e8d36a';
+  for (let k = 0; k < 13; k++) {
+    const x = (0.62 + k * 0.105) * S;
+    g.fillRect(x, 0, 0.06 * S, 0.07 * S);
+    g.fillRect(x, c.height - 0.07 * S, 0.06 * S, 0.07 * S);
+  }
+  for (let k = 0; k < 10; k++) g.fillRect(c.width - 0.07 * S, (0.32 + k * 0.105) * S, 0.07 * S, 0.06 * S);
+  // printed antenna trace (zig-zag)
+  g.strokeStyle = '#3b3b3d'; g.lineWidth = 0.05 * S; g.lineJoin = 'miter';
+  const pts = [[0.48, 0.1], [0.1, 0.1], [0.1, 0.3], [0.48, 0.3], [0.48, 0.55], [0.1, 0.55], [0.1, 0.78], [0.48, 0.78], [0.48, 1.0], [0.1, 1.0], [0.1, 1.3], [0.36, 1.3]];
+  g.beginPath(); pts.forEach(([x, z], i) => (i ? g.lineTo(x * S, z * S) : g.moveTo(x * S, z * S))); g.stroke();
+  return texFrom(c);
+}
+function shieldTexture(w, d) {
+  const S = 220;
+  const [c, g] = canvasFor(w, d, S);
+  g.fillStyle = '#a7aaae'; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = '#f2f3f4'; g.lineWidth = 6; g.strokeRect(3, 3, c.width - 6, c.height - 6);
+  g.save(); g.translate(c.width / 2, c.height / 2); g.rotate(Math.PI / 2);
+  g.fillStyle = '#f4f5f6'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `800 ${0.16 * S}px Nunito, Arial, sans-serif`;
+  g.fillText('ESP-WROOM-32', 0, -0.36 * S);
+  g.font = `800 ${0.34 * S}px Nunito, Arial, sans-serif`;
+  g.fillText('C  E', -0.12 * S, 0.02 * S);
+  g.font = `700 ${0.09 * S}px Nunito, Arial, sans-serif`;
+  g.fillText('FCC ID: 2AC7Z-ESPWROOM32', 0, 0.4 * S);
+  g.restore();
+  g.fillStyle = '#111'; g.beginPath(); g.arc(c.width - 0.14 * S, c.height - 0.14 * S, 0.05 * S, 0, Math.PI * 2); g.fill();
+  return texFrom(c);
+}
+function chipTexture(w, d, lines, rot) {
+  const S = 260;
+  const [c, g] = canvasFor(w, d, S);
+  g.fillStyle = '#26272a'; g.fillRect(0, 0, c.width, c.height);
+  g.save(); g.translate(c.width / 2, c.height / 2); g.rotate(rot);
+  g.fillStyle = '#8f9196'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `600 ${0.075 * S}px 'JetBrains Mono', monospace`;
+  lines.forEach((t, i) => g.fillText(t, 0, (i - (lines.length - 1) / 2) * 0.09 * S));
+  g.restore();
+  return texFrom(c);
+}
+function topBox(w, h, d, sideMat, tex, x, y, z, tint = 0xffffff) {
+  const m = [sideMat, sideMat, new THREE.MeshStandardMaterial({ map: tex, color: tint, roughness: 0.5 }), sideMat, sideMat, sideMat];
+  return mesh(new THREE.BoxGeometry(w, h, d), m, x, y, z);
 }
 
 function makeESP32() {
   const g = new THREE.Group();
   const { cx, cz, W, D, y } = ESP;
   const top = y + 0.03;
-  g.add(mesh(new THREE.BoxGeometry(W, 0.06, D), mat(0x1c3474, { roughness: 0.55 }), cx, y, cz));
-  const face = mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: esp32Texture(), roughness: 0.55 }), cx, top + 0.001, cz, false);
-  face.rotation.x = -Math.PI / 2;
-  g.add(face);
-  const dark = mat(0x1d2025, { roughness: 0.5 });
-  for (const [fx, fz] of [[-2.6, -3.55], [1.95, -3.55], [-2.6, -5.9], [1.95, -5.9]]) g.add(mesh(new THREE.CylinderGeometry(0.13, 0.13, top - 0.06 + 0.4, 12), dark, fx, (-0.4 + y) / 2, fz));
+  const pcb = mat(0x46474b, { roughness: 0.6 });
+  g.add(topBox(W, 0.06, D, pcb, esp32Texture(), cx, y, cz));
+  const dark = mat(0x1d1e21, { roughness: 0.5 });
+  const silver = mat(0xd3d6da, { metalness: 0.45, roughness: 0.3 });
+  // rubber feet under the mounting holes
+  for (const x of [ESP.x0 + 0.2, ESP.x1 - 0.2]) for (const z of [cz - 1.02, cz + 1.02]) g.add(mesh(new THREE.CylinderGeometry(0.12, 0.12, y + 0.4 - 0.03, 12), dark, x, (-0.4 + y - 0.03) / 2, z));
   // header strips with pins pointing up (female jumper ends slide onto them)
-  const gold = mat(0xd9b44a, { metalness: 0.4, roughness: 0.35 });
   const pinGeo = new THREE.BoxGeometry(0.05, 0.3, 0.05);
+  const pinMat = mat(0xd9b44a, { metalness: 0.4, roughness: 0.35 });
   for (const z of [HEADER_Z, FAR_HEADER_Z]) {
-    g.add(mesh(new THREE.BoxGeometry(15 * P, 0.1, 0.24), dark, 0, top + 0.05, z));
-    for (let k = 0; k < 15; k++) g.add(mesh(pinGeo, gold, pinColX(k), top + 0.2, z, false));
+    g.add(mesh(new THREE.BoxGeometry(15 * P, 0.08, 0.22), dark, 0, top + 0.04, z));
+    for (let k = 0; k < 15; k++) g.add(mesh(pinGeo, pinMat, pinColX(k), top + 0.2, z, false));
   }
-  // ESP-WROOM-32 module: antenna end, metal shield
-  g.add(mesh(new THREE.BoxGeometry(2.5, 0.05, 1.8), dark, -1.6, top + 0.025, cz));
-  g.add(mesh(new THREE.BoxGeometry(1.6, 0.14, 1.6), mat(0xd3d7dc, { metalness: 0.45, roughness: 0.3 }), -1.2, top + 0.12, cz));
-  const ant = mat(0xc9a227, { metalness: 0.4, roughness: 0.4 });
-  for (let k = 0; k < 4; k++) g.add(mesh(new THREE.BoxGeometry(0.05, 0.01, 1.4), ant, -2.75 + k * 0.17, top + 0.056, cz, false));
-  // micro-USB, buttons, chips, power LED
-  g.add(mesh(new THREE.BoxGeometry(0.55, 0.22, 0.62), mat(0xd3d7dc, { metalness: 0.45, roughness: 0.3 }), 2.2, top + 0.11, cz));
-  for (const z of [HEADER_Z - 0.85, FAR_HEADER_Z + 0.85]) {
-    g.add(mesh(new THREE.BoxGeometry(0.4, 0.1, 0.3), mat(0xd3d7dc, { metalness: 0.4, roughness: 0.3 }), 1.55, top + 0.05, z));
-    g.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12), dark, 1.55, top + 0.13, z));
+  // ESP-WROOM-32 module: black carrier with antenna trace, metal shield
+  const mx0 = ESP.x0 + 0.04, mx1 = pinColX(7) + 0.05, mw = mx1 - mx0, md = 1.44;
+  g.add(topBox(mw, 0.06, md, dark, moduleTexture(mw, md), (mx0 + mx1) / 2, top + 0.03, cz));
+  const sw = 1.52, sd = 1.32, sx = mx1 - 0.06 - sw / 2;
+  g.add(topBox(sw, 0.1, sd, silver, shieldTexture(sw, sd), sx, top + 0.11, cz, 0x9a9da2));
+  // power LED (red, lit when powered) and GPIO2 LED (blue)
+  g.add(mesh(new THREE.BoxGeometry(0.16, 0.05, 0.09), mat(0xff2a2a, { emissive: 0xff2020, emissiveIntensity: 0.9 }), 0.42, top + 0.025, cz + 0.45, false));
+  g.add(mesh(new THREE.BoxGeometry(0.16, 0.05, 0.09), mat(0x2aa7e0, { roughness: 0.4 }), 0.42, top + 0.025, cz - 0.45, false));
+  // AMS1117 regulator and CP2102 USB chip
+  g.add(topBox(0.57, 0.12, 0.28, dark, chipTexture(0.57, 0.28, ['AMS1117', '3.3'], 0), 1.3, top + 0.06, cz + 0.48));
+  g.add(mesh(new THREE.BoxGeometry(0.2, 0.03, 0.3), silver, 1.3, top + 0.015, cz + 0.72, false));
+  g.add(topBox(0.44, 0.08, 0.44, dark, chipTexture(0.44, 0.44, ['CP2102', 'DCL0CH'], 0), 1.34, top + 0.04, cz - 0.56));
+  // EN and BOOT buttons either side of the micro-USB socket
+  for (const z of [cz + 0.71, cz - 0.71]) {
+    g.add(mesh(new THREE.BoxGeometry(0.43, 0.12, 0.25), silver, ESP.x1 - 0.25, top + 0.06, z));
+    g.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 16), dark, ESP.x1 - 0.25, top + 0.15, z));
   }
-  g.add(mesh(new THREE.BoxGeometry(0.42, 0.08, 0.42), dark, 0.75, top + 0.04, cz + 0.62));
-  g.add(mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), dark, 0.75, top + 0.06, cz - 0.62));
-  g.add(mesh(new THREE.BoxGeometry(0.08, 0.04, 0.05), mat(0xff4040, { emissive: 0xff2020, emissiveIntensity: 0.6 }), 1.95, top + 0.02, cz + 0.4, false));
+  g.add(mesh(new THREE.BoxGeometry(0.5, 0.2, 0.68), silver, ESP.x1 - 0.17, top + 0.1, cz));
   tagPart(g, 'controller');
   return g;
 }
@@ -968,7 +1051,7 @@ const gndWire = makeWire([gA, V(1.55, 0.85, -3.3), V(3.3, 1.5, -2.6), V(4.6, 1.3
 scene.add(gndWire.group);
 
 const cop = makeCop();
-cop.position.set(-6.6, -0.4, 1.4);
+cop.position.set(-5.9, -0.4, 1.6);
 cop.rotation.y = 0.45;
 scene.add(cop);
 const bigLed = makeBigLED();
@@ -1100,11 +1183,11 @@ CH.forEach((ch, i) => {
     { obj: leds[i], cls: 'lamp ' + ch.key, lift: 58, update: (L) => L.el.classList.toggle('on', litIndex === i) });
   addLabel('330 Ω', V(colX(ch.col) - 0.05, 0.42, -0.15), { obj: resistors[i], lift: 8 });
 });
-addLabel('ESP32 DevKit (controller)', V(-1.2, 0.02, -4.72), { obj: esp32, lift: 6 });
+addLabel('ESP32 DevKit (controller)', V(-1.0, 0.0, ESP.cz), { obj: esp32, lift: 6 });
 addLabel('Breadboard', V(-3.9, 0.02, 2.55), { obj: breadboard, lift: 6 });
 addLabel('Ground rail (−)', V(colX(3), 0.02, NEG_RAIL_Z), { obj: breadboard, lift: 34 });
 addLabel('Jumper wire', () => gndWire.curve.getPoint(0.45), { obj: gndWire.group, lift: 12 });
-addLabel('Officer Ohm', V(-6.6, 2.7, 1.4), { obj: cop, lift: 8 });
+addLabel('Officer Ohm', V(-5.9, 2.7, 1.6), { obj: cop, lift: 8 });
 const pinLabels = ['D25', 'D26', 'D27', 'GND'].map((n, i) => addLabel(n, pinAt(n, HEADER_TOP + 0.05), {
   obj: esp32, cls: 'pin', lift: [14, 40, 66, 14][i],
   update: (L) => {
@@ -1965,7 +2048,7 @@ goTo(0, { instant: true });
 requestAnimationFrame(frame);
 
 // expose a tiny hook for automated checks
-window.__lesson = { goTo, get step() { return stepIndex; }, seq, setGreen, selectPart };
+window.__lesson = { camera, controls, goTo, get step() { return stepIndex; }, seq, setGreen, selectPart };
 })();
 </script>
 </body>
